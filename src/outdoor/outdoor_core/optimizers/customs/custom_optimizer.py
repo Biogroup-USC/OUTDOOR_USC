@@ -91,8 +91,8 @@ class MultiObjectiveOptimizer(SingleOptimizer):
         model_instance_original = copy.deepcopy(model_instance)
         model_output = MultiModelOutput(optimization_mode="multi-objective")
         model_output.multi_data = self.multi_data  # multi_data is actually the options of the multi-objective optimization
-        objective1 = self.multi_data["objective1"]
-        objective2 = self.multi_data["objective2"]
+        objective1 = self.multi_data["objective1"] # the objective function that becomes constrained bounds
+        objective2 = self.multi_data["objective2"] #  the objective function that is the model objective
         paretoPoints = self.multi_data["paretoPoints"]
 
         # get the bounds of the first objective function
@@ -163,6 +163,8 @@ class MultiObjectiveOptimizer(SingleOptimizer):
         print("\033[93m" + "The infeasible for the bounds are: {}"
                            " \n for objective {}".format(unfeasibleBounds, objective1) + "\033[0m")
 
+        # not just the pareto front but an entire design space
+        ############################################################################################################
         # see if we want to do design space exploration
         if 'design_space_mode' in self.multi_data.keys():
             if self.multi_data['design_space_mode'] == True:
