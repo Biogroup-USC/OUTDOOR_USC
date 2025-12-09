@@ -398,7 +398,7 @@ class LCACalculationMachine:
                 continue
 
             # Create a clean new key by tagging the indicator only (safer than altering top-level parts)
-            new_key = (meth[0], f"{meth[1]} [BIO=+1]", meth[2], meth[3])
+            new_key = (meth[0], f"{meth[1]} [BIO=1]", meth[2], meth[3])
 
             # If it already exists, keep it (or wipe & rebuild, your choice)
             if new_key in bw.methods:

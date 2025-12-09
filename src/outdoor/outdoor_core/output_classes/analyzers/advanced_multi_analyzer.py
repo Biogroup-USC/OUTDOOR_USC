@@ -12,6 +12,7 @@ import datetime
 # import pickle5 as pic5
 import time
 import math
+import re
 
 import cloudpickle as pic
 import matplotlib
@@ -1887,6 +1888,7 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
         :param flowThreshold: float cut off the mass flow of the flow sheet design
         :return:
         """
+
         flowTreshold = 1e-5
         data = self.model_output._results_data
         designDict = {}
@@ -1914,5 +1916,5 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
             saveName = 'Flowsheet Design '
 
         for i, dataFlowsheet in enumerate(groupResultsDict.values()):
-            saveName = saveName + str(i)
-            self.create_flowsheet(path=path, saveName=saveName, multiObjectiveData=dataFlowsheet)
+            saveNameNew = self.sanitize_save_name(saveName, i)
+            self.create_flowsheet(path=path, saveName=saveNameNew, multiObjectiveData=dataFlowsheet)

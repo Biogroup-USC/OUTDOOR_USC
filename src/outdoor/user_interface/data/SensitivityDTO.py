@@ -52,9 +52,27 @@ class SensitivityDTO(OutdoorDTO):
                 self.targetUnitProcess = value
             case "reactionUid":
                 self.reactionUid = value
+
             case "lowerBound":
-                self.lowerBound = float(value)
+                self.lowerBound = value
+
+                #if value == '':
+                #    self.lowerBound = 0
+                #else:
+                #    self.lowerBound = float(value)
+
             case "upperBound":
                 self.upperBound = value
+                # if value == '':
+                #     self.upperBound = 0
+                # else:
+                #     self.upperBound = float(value)
+
             case "steps":
                 self.steps = value
+
+                # if value == '':
+                #     self.steps = 0
+                # else:
+                #     self.steps = float(value)
+

@@ -448,6 +448,13 @@ class ModelOutput:
 
         for impCat in model_data['IMPACT_UTILITIES_PER_CAT']:
             lca_results['Utilities'][impCat] = round(model_data['IMPACT_UTILITIES_PER_CAT'][impCat], 3)
+            for ut in model_data['UT']:
+                utName = "Utilities_" + ut
+                try:
+                    lca_results[utName][impCat] = round(model_data["IMPACT_UTILITIES"][ut, impCat],3)
+                except:
+                    lca_results[utName] = dict()
+                    lca_results[utName][impCat] = round(model_data["IMPACT_UTILITIES"][ut, impCat], 3)
 
         for impCat in model_data['IMPACT_WASTE_PER_CAT']:
             lca_results['Waste'][impCat] = round(model_data['IMPACT_WASTE_PER_CAT'][impCat], 3)
@@ -503,12 +510,16 @@ class ModelOutput:
         counterElec = 0
         counterWaste = 0
         counterRM = 0
+        lenUnits = len(units) - len(exclude_units)
+
+        heatDeficitDict = self._find_unit_to_exchange_heat(model_data)
+
         for u, name in units.items():
             if (u not in model_data['U_PP'] and u not in model_data['U_S']
                 and u not in model_data['U_DIST'] and name not in exclude_units): # not a product, source or distribution units
                 rawMaterialImpact = model_data['IMPACT_INPUTS_U_CAT'][u, impCat]/model_data['sourceOrProductLoad']/1000
                 wasteDisposalImpact = model_data['WASTE_U'][u, impCat]/model_data['sourceOrProductLoad']/1000
-                electricity, heat = self.utility_impact(u, impCat, data)
+                electricity, heat = self.utility_impact(u, impCat, heatDeficitDict, data)
                 lca_results[name] = {'Raw material': rawMaterialImpact,
                                      'Waste disposal': wasteDisposalImpact,
                                      'Electricity': electricity/model_data['sourceOrProductLoad']/1000,
@@ -528,7 +539,7 @@ class ModelOutput:
             print('cumulative impacts calculation:', cumulativeImpact)
             print('model impact:', modelImpact)
 
-        # get the total heat and electricity impact calulated by the model
+        # get the total heat and electricity impact calculated by the model
         modelCalculatedElec = model_data['IMPACT_UTILITIES']['Electricity', impCat]/model_data['sourceOrProductLoad']/1000
         modelCalculatedHeat = (model_data['IMPACT_UTILITIES']['Heat', impCat] + model_data['IMPACT_UTILITIES']['Heat2', impCat])//model_data['sourceOrProductLoad']/1000
 
@@ -569,9 +580,41 @@ class ModelOutput:
 
         return lca_results
 
-    def utility_impact(self, u, impCat, data=None):
+    def _find_unit_to_exchange_heat(self, model_data):
+
+        heatExchangeTot = model_data['EXCHANGE_TOT']
+
+        # Build a dictionary: unit → heat demand
+        demandDict = {
+            u: model_data['ENERGY_DEMAND_HEAT_UNIT'][u]
+            for u in model_data['UU']
+        }
+
+        # Sort units by heat demand, from large to small
+        # Produces a list of tuples: [(unit, demand), ...]
+        sortedDemands = sorted(demandDict.items(), key=lambda x: x[1], reverse=True)
+
+        remainingHeat = heatExchangeTot
+        deficitHeatDict = {}
+
+        for u, demand in sortedDemands:
+
+            if remainingHeat > 0:
+                # Allocate heat but not more than the unit demands
+                allocated = min(demand, remainingHeat)
+                remainingHeat -= allocated
+            else:
+                allocated = 0.0
+
+            # deficit = what the unit still needs
+            deficitHeatDict[u] = demand - allocated
+
+        return deficitHeatDict
+
+
+    def utility_impact(self, u, impCat, heatDeficitDict, data=None):
         """
-        Description: Returns the utility impact of a unit depening on if it is a generator or a normal Unit
+        Description: Returns the utility impact of a unit depending on if it is a generator or a normal Unit
 
         :param u:
         :param impCat:
@@ -589,14 +632,19 @@ class ModelOutput:
                            - model_data['EL_PROD_1'][u] * model_data['flh'][u]) *
                            model_data['util_impact_factors']['Electricity', impCat])
 
+            # does not take into acount that exchange can happen due to produced heat! Only takes into account the demand...
+            # so assume heat is sent to all units equally, not really true but closes the balance at least
 
-            heat1 = ((model_data['ENERGY_DEMAND_HEAT_UNIT'][u] * model_data['flh'][u] -
-                    model_data['ENERGY_DEMAND_HEAT_PROD'][u] * model_data['flh'][u])
-                    * model_data['util_impact_factors']['Heat', impCat])
+            #heat1 = ((model_data['ENERGY_DEMAND_HEAT_UNIT'][u] * model_data['flh'][u] -
+            #        model_data['ENERGY_DEMAND_HEAT_PROD'][u] * model_data['flh'][u])
+            #        * model_data['util_impact_factors']['Heat', impCat])
 
-            cool = ((model_data['ENERGY_DEMAND_COOL_UNIT'][u] * model_data['flh'][u] -
-                    model_data['ENERGY_DEMAND_HEAT_PROD'][u] * model_data['flh'][u])
-                    * model_data['util_impact_factors']['Heat', impCat])
+            heat1 = heatDeficitDict[u] * model_data['flh'][u] * model_data['util_impact_factors']['Heat', impCat]
+
+            #cool = ((model_data['ENERGY_DEMAND_COOL_UNIT'][u] * model_data['flh'][u] -
+            #       model_data['ENERGY_DEMAND_HEAT_PROD'][u] * model_data['flh'][u])
+            #       * model_data['util_impact_factors']['Heat', impCat])
+            cool = 0
 
             heat = heat1 + cool
 
@@ -604,16 +652,83 @@ class ModelOutput:
             electricity = ((model_data['ENERGY_DEMAND'][u,'Electricity'] + model_data['ENERGY_DEMAND'][u,'Chilling'] ) * model_data['flh'][u] *
                             model_data['util_impact_factors']['Electricity', impCat])
 
-            heat1 = (model_data['ENERGY_DEMAND_HEAT_UNIT'][u] * model_data['flh'][u] *
-                     model_data['util_impact_factors']['Heat', impCat])
+            #heat1 = (model_data['ENERGY_DEMAND_HEAT_UNIT'][u] * model_data['flh'][u] *
+            #         model_data['util_impact_factors']['Heat', impCat])
 
-            cool = (model_data['ENERGY_DEMAND_COOL_UNIT'][u] * model_data['flh'][u] *
-                     model_data['util_impact_factors']['Heat', impCat])
+            heat1 = heatDeficitDict[u] * model_data['flh'][u]  * model_data['util_impact_factors']['Heat', impCat]
+
+            # cool = (model_data['ENERGY_DEMAND_COOL_UNIT'][u] * model_data['flh'][u] *
+            #          model_data['util_impact_factors']['Heat', impCat])
+            cool = 0
 
             heat = heat1 + cool
 
         # utilityImpact = electricity + heat
         return electricity, heat
+
+    def check_heat_consumption(self, data=None):
+
+        if data is None:
+            model_data = self._data
+        else:
+            model_data = data
+
+        unitsSelected = self.return_chosen(data= model_data, threshold=1e-5)
+
+        heatUnits = 0
+        heatExchangeTot = model_data['EXCHANGE_TOT']
+        exchangeAverage = heatExchangeTot/len(unitsSelected)
+
+        for u in unitsSelected:
+            if u in model_data['U_FUR'] or u in model_data['U_TUR']:
+
+                heatUnits += (model_data['ENERGY_DEMAND_HEAT_UNIT'][u] - exchangeAverage) * model_data['flh'][u]
+                   # - model_data['ENERGY_DEMAND_HEAT_PROD'][u] * model_data['flh'][u]))
+
+            else:
+                heatUnits += (model_data['ENERGY_DEMAND_HEAT_UNIT'][u] - exchangeAverage) * model_data['flh'][u]
+                            # (model_data['ENERGY_DEMAND_HEAT_UNIT'][u])
+
+        # modelHeat = model_data['ENERGY_DEMAND_TOT']['Electricity']
+        modelHeat = (model_data['H'] *
+                     (sum(model_data['ENERGY_DEMAND_HEAT_DEFI'][hi] for hi in model_data['HI'])
+                      - model_data['ENERGY_DEMAND_HEAT_PROD_SELL']))
+
+        GREEN_BOLD = "\033[1;36m"
+        RESET = "\033[0m"
+
+        # print("heqt sold: ", model_data['ENERGY_DEMAND_HEAT_PROD_SELL'])
+        print(f"{GREEN_BOLD}Heat consumption model: {modelHeat}{RESET}")
+        print(f"{GREEN_BOLD}Post Heat consumption: {heatUnits}{RESET}")
+        print("")
+
+    def check_electricity_consumption(self, data=None):
+        if data is None:
+            model_data = self._data
+        else:
+            model_data = data
+
+        unitsSelected = self.return_chosen(data=model_data, threshold=1e-5)
+
+        electricity = 0
+        for u in unitsSelected:
+            if u in model_data['U_FUR'] or u in model_data['U_TUR']:
+
+                electricity += (model_data['ENERGY_DEMAND'][u, 'Electricity'] * model_data['flh'][u]
+                                - model_data['EL_PROD_1'][u] * model_data['flh'][u])
+
+            else:
+                electricity += (
+                        (model_data['ENERGY_DEMAND'][u, 'Electricity'] + model_data['ENERGY_DEMAND'][u, 'Chilling']) *
+                        model_data['flh'][u])
+
+        modelElectricity = model_data['ENERGY_DEMAND_TOT']['Electricity']
+
+        GREEN_BOLD = "\033[1;32m"
+        RESET = "\033[0m"
+
+        print(f"{GREEN_BOLD}Electricity consumption model: {modelElectricity}{RESET}")
+        print(f"{GREEN_BOLD}Post Electricity consumption: {electricity}{RESET}")
 
     def plot_impacts_per_unit(self, impact_category, path, bar_width=0.8,
                               sources=None,
@@ -726,11 +841,15 @@ class ModelOutput:
         cat_data = {}
         cat_data_units = {}
 
+        self.check_electricity_consumption(data=data)
+        self.check_heat_consumption(data=data)
+
         for category in impact_categories:
             # Grab the detailed results for this category
             lca_results = self.get_detailed_LCA_results_per_unit(
                 category, exclude_units=exclude_units, data=data
             )
+
             process_units = lca_results.keys()
 
             # Initialize sums
@@ -1682,6 +1801,14 @@ class ModelOutput:
             plt.savefig(saveLocation, format='png', dpi=300)  # High-resolution saving for publication
         plt.show()
 
+    def get_LCA_references(self):
+        """
+        Get's the chosen references to calculate the impact of a given activity
+        and prints it to the consul
+        """
+        print("---- Method 'get_LCA_references' Still under construction  -----")
+
+        return
 
     # ---------------------------- Pickle methods --------------------------------
     # methodes to save and load the object as pickle file
@@ -1838,6 +1965,7 @@ class ModelOutput:
 
         # print location of saved file in purple
         print('\033[95m' + f"Data saved at: {path}")
+
     @classmethod
     def load_from_pickle(cls, path):
         """

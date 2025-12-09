@@ -808,7 +808,7 @@ class ConstructSuperstructure:
 
         # Loop over the list to access the DTO's one by one and use the build in method dto.as.dict
         for dto in sensitivityDTOList:
-            row_data = dto._as_dict()
+            row_data = dto.as_dict()
             rows.append(row_data)
 
         # Add the data to the pandas dataframe (which must have column names):

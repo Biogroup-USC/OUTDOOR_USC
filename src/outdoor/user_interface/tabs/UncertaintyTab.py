@@ -110,7 +110,6 @@ class UncertaintyTab(QWidget):
         self.setLayout(self.layout)
 
         # if the central data manager has data, import it
-        # todo: check if the import works, you have to initiate a uncertaitntly list in interface_main.py to test this when loading an example .oudtr file
         self.importData()
 
 

@@ -6,6 +6,7 @@ import pandas as pd
 import coloredlogs
 from PyQt5.QtWidgets import QTabWidget, QApplication, QMainWindow, QAction, QFileDialog, QDialog
 from pyparsing import empty
+import bw2data as bw
 from outdoor.user_interface.data.CentralDataManager import CentralDataManager
 from outdoor.user_interface.data.SignalManager import SignalManager
 from outdoor.user_interface.data.superstructure_frame import SuperstructureFrame
@@ -78,12 +79,21 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         editMenu.addAction(self.editAction)
 
         structureMenu = menu_bar.addMenu('Superstructure')
+        # add superstructure generation button
         self.superStructureAction = QAction('Generate Superstructure', self)
-        self.superStructureAction.triggered.connect(self.generateSuperstructureObject)
+        self.superStructureAction.triggered.connect(self.generateSuperstructureObject) # connect to method
+
+        # add calculate LCA button
         self.calcLCAAction = QAction('Calculate all LCAs', self)
-        self.calcLCAAction.triggered.connect(self.calculateAllLCAs)
+        self.calcLCAAction.triggered.connect(self.calculateAllLCAs)# connect to method
+
+        # add print reference to consul
+        self.printRefLCA = QAction('Print References LCA', self)
+        self.printRefLCA.triggered.connect(self.printReferencesLCA)  # connect to method
+
         structureMenu.addAction(self.superStructureAction)
         structureMenu.addAction(self.calcLCAAction)
+        structureMenu.addAction(self.printRefLCA)
 
         self.initTabs()
 
@@ -328,6 +338,41 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         calculator.calculateAllLCAs(False)
 
         self.update()
+
+    def printReferencesLCA(self):
+        """
+        Prints out the references used to calculate the impacts of the LCA to the consul
+        """
+
+        # Do calculations
+        self.logger.info("Collecting LCA references..")
+        biglist = self.centralDataManager.componentData + self.centralDataManager.wasteData + self.centralDataManager.utilityData
+        inventory = {}
+
+        self.outd = bw.Database('outdoor')
+
+        # Rest of your calculation code...
+        for component in biglist:
+            componentReferences = {}
+            componentName = "error"
+            if len(component.LCA['exchanges']) > 0:
+
+                try:
+                    componentName = component.name
+                    for exchange, dict in component.LCA['exchanges'].items():
+                        reference = dict.get('Reference')
+                        region = dict.get('Region')
+                        componentReferences.update({'Reference': reference, 'Region': region})
+
+                except Exception as e:
+                    self.logger.error("The following error ocuured: ", e)
+
+                inventory.update({componentName: componentReferences})
+
+        for key, val in inventory.items():
+            print(key, val)
+        #print(inventory)
+
 
 def checkFocus():
     """

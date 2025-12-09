@@ -305,10 +305,6 @@ class SensitivityTab(QWidget):
         :return:
         """
 
-        columnsLimitedData = [1,2,3,4,5]  # columns that have limited data based on the parameter type
-        for col in deactivateColumns:
-            columnsLimitedData.remove(col)
-
         for col in range(1, 6):
             widget = self.sensitivityTable.cellWidget(rowPosition, col)
             if col in deactivateColumns:
@@ -317,20 +313,8 @@ class SensitivityTab(QWidget):
                         widget.addItem("n.a.")
                     widget.setCurrentText("n.a.")
                 widget.setEnabled(False)
-                # a bit darker then light gray
-                hexCode = "#d3d3d3"
+                hexCode = "#d3d3d3" # a bit darker then light gray
                 self._updateBackgroundColor(widget, hexCode)
-
-            if col in columnsLimitedData:
-                # find the value in the first widget (1st column)
-                paramTypeWidget = self.sensitivityTable.cellWidget(rowPosition, 0)
-                paramType = paramTypeWidget.currentText()
-                uniqueDataList = self._getparameterSpecificList(columnNr=col)
-                # give the combobox the new list
-                # delete old items in the combobox in the current widget
-                widget.clear()
-                for obj in uniqueDataList:
-                    widget.addItem(obj)
 
             else:
                 if isinstance(widget, ComboBox):
@@ -339,6 +323,28 @@ class SensitivityTab(QWidget):
                         widget.removeItem(index)
                 widget.setEnabled(True)
                 self._updateBackgroundColor(widget, "white")
+
+            # todo later, in later stages we could limit the data that is shown,
+            #  e.g. for prices, only drop down the output units in the unit column dropdown widgets
+
+            #if col in columnsLimitedData:
+            #    # find the value in the first widget (1st column)
+            #    paramTypeWidget = self.sensitivityTable.cellWidget(rowPosition, 0)
+            #    paramType = paramTypeWidget.currentText()
+            #    uniqueDataList = self._getparameterSpecificList(columnNr=col)
+            #    # give the combobox the new list
+            #    # delete old items in the combobox in the current widget
+            #    widget.clear()
+            #    for obj in uniqueDataList:
+            #        widget.addItem(obj)
+
+            #else:
+            #    if isinstance(widget, ComboBox):
+            #        index = widget.findText("n.a.")
+            #        if index != -1:
+            #            widget.removeItem(index)
+            #    widget.setEnabled(True)
+            #    self._updateBackgroundColor(widget, "white")
 
     def _getparameterSpecificList(self, columnNr:int = None):
         """
@@ -437,8 +443,9 @@ class SensitivityTab(QWidget):
                 else:
                     value = widget.text()  # For other types of widgets, adjust as needed
 
-                if column in ["Parameter Type", "Component", "Uncertainty Factor", "Distribution Function"]:
+                if column in ["Parameter Type", "Component", "Lower Bound", "Upper Bound", "Number of Steps"]:
                     edit.upadateField(self.columnsShortnames[sindex], value)
+
                 elif column in ["Unit Process", "Target Unit Process"]:
                     if value == "n.a." or value == "":
                         edit.upadateField(self.columnsShortnames[sindex], "n.a.")
@@ -446,6 +453,7 @@ class SensitivityTab(QWidget):
                         unitDict = self.centralDataManager.unitProcessData
                         id = [u for u in unitDict.values() if u.name == value][0].uid
                         edit.upadateField(self.columnsShortnames[sindex], id)
+
                 elif column == "Reaction":
                     if value == "n.a." or value == "":
                         edit.upadateField(self.columnsShortnames[sindex], "n.a.")
@@ -459,7 +467,7 @@ class SensitivityTab(QWidget):
 
     def importData(self):
         try:
-            tabledata = self.centralDataManager.uncertaintyData
+            tabledata = self.centralDataManager.sensitivityData
             for row in tabledata:
                 self.addSensitivityRow(row)
         except Exception as e:
@@ -487,6 +495,6 @@ class SensitivityTab(QWidget):
                 self.sensitivityTable.removeRow(row)
 
             # update the dto list containing the chemical components
-            self.centralDataManager.updateData('uncertaintyData', row)
+            self.centralDataManager.updateData('sensitivityData', row)
             # open a dialog if the component is used in a reaction or unit operation
 

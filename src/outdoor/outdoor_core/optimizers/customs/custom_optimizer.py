@@ -362,7 +362,7 @@ class MultiObjectiveOptimizer(SingleOptimizer):
             if objective == "EBIT":
                 operator = lambda x, y: x >= y
             else:
-                operator = lambda x, y: x >= y # fixme!! important bug when the NPc is negative the > needs to be flipped!!!!!!!!!!!!!
+                operator = lambda x, y: x <= y # fixme!! important bug when the NPc is negative the > needs to be flipped!!!!!!!!!!!!!
 
         # Create a new objective function and bounds
         if objective == "NPC":

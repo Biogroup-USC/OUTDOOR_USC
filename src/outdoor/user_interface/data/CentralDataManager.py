@@ -125,7 +125,6 @@ class CentralDataManager:
                         data = self.componentData[i]
                         data.updateRow()
 
-
             case "uncertaintyData":
                 # delete the row with the data for that uncertainty
                 self.uncertaintyData.pop(row)
@@ -134,6 +133,16 @@ class CentralDataManager:
                 if row != sizeUncertaintyList:  # if it's the last element in the list don't adjust the indices
                     for i in range(row, sizeUncertaintyList):
                         data = self.uncertaintyData[i]
+                        data.updateRow()
+
+            case "sensitivityData":
+                # delete the row with the data for that uncertainty
+                self.sensitivityData.pop(row)
+                sizeList = len(self.sensitivityData)
+
+                if row != sizeList:  # if it's the last element in the list don't adjust the indices
+                    for i in range(row, sizeList):
+                        data = self.sensitivityData[i]
                         data.updateRow()
 
     def updateIconData(self, iconId, newData):

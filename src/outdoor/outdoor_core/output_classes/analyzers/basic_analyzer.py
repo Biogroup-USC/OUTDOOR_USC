@@ -12,7 +12,7 @@ import itertools
 import os
 import sys
 import time
-
+import re
 import cloudpickle as pic
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1308,4 +1308,13 @@ class BasicModelAnalyzer:
         plt.savefig(path, bbox_inches='tight')
         #plt.show()
 
-
+    def sanitize_save_name(self, saveName: str, index: int) -> str:
+        """
+        Remove a trailing number from saveName (if present) and append a new index.
+        """
+        match = re.match(r"(.*?)(\d+)$", saveName)
+        if match:
+            base = match.group(1)
+        else:
+            base = saveName
+        return f"{base}{index}"
