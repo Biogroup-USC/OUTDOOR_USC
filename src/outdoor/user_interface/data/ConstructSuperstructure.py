@@ -75,8 +75,8 @@ class ConstructSuperstructure:
         self.superstructureObject.add_UnitOperations(superstructureListUnits)
 
         # add sensitivity dataframe to the superstructure object
-        sensitivityDataframe = self._getSensitivitydata()
-
+        sensitivityData = self._getSensitivitydata()
+        self.superstructureObject.sensitive_parameters = sensitivityData
 
     def _setGeneralData(self):
         """
@@ -806,6 +806,8 @@ class ConstructSuperstructure:
         sensitivityDTOList = self.centralDataManager.sensitivityData
         rows = []
 
+        sensitive_parameters = []
+
         # Loop over the list to access the DTO's one by one and use the build in method dto.as.dict
         for dto in sensitivityDTOList:
             row_data = dto.as_dict()
@@ -814,7 +816,24 @@ class ConstructSuperstructure:
         # Add the data to the pandas dataframe (which must have column names):
         df = pd.DataFrame(rows)
 
-        return  df
+        # transform into a list of df series, one for each parameter. otherwise the back end won't read it
+        rangeSensitivity = range(len(df))
+        for i in rangeSensitivity:
+            rowPos = df.iloc[i,1]
+            paramType = df.iloc[i,2]
+
+            dfSensiRow = df.iloc[i, 2:]
+            try:
+                dfSensiRow.iloc[-3:] = dfSensiRow.iloc[-3:].astype(float)
+            except:
+                message = ("Non integer value given in the sensitivity data. "
+                           "\n Please check row {} parameterType {}".format(rowPos, paramType))
+                self._showErrorDialog(message,
+                                      title="Non integer value given in the sensitivity data")
+
+            sensitive_parameters.append(dfSensiRow)
+
+        return  sensitive_parameters
 
     def _addUncertaintyData(self):
         """

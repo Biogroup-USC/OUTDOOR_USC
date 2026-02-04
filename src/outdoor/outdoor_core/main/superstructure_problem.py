@@ -76,6 +76,7 @@ class SuperstructureProblem:
         mpi_sppy_options=None,
         outputFileDesignSpace=None,
         multi_objective_options=None,
+        modelObjective=None,
     ):
         """
 
@@ -121,6 +122,11 @@ class SuperstructureProblem:
             4) optimizer.run_optimization()
 
         """
+
+        # change the model objective in the inputdata if given as a input to the methode
+        if modelObjective:
+            #input_data
+            pass
 
         # check if the stochastic mode is set correctly for the 2-stage-recourse optimization mode
         self.stochastic_mode = input_data.stochasticMode

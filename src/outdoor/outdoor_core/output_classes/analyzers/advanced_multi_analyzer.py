@@ -13,6 +13,8 @@ import datetime
 import time
 import math
 import re
+from matplotlib.lines import Line2D
+import itertools
 
 import cloudpickle as pic
 import matplotlib
@@ -216,7 +218,7 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
                   mode Multi-criteria optimization"
             )
 
-    # ANALYSIS METHODS FOR SENSITIVTY MODE
+    # ANALYSIS METHODS FOR SENSITIVITY MODE
     # ------------------------------------
 
     def _collect_sensi_data(self, objectiveParameter):
@@ -234,21 +236,38 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
         for i, j in self.model_output._results_data.items():
 
             if len(i) > 2:
-                titel = i[0:2]
+                title = i[0:2]
             else:
-                titel = i[0]
+                title = i[0]
 
-            if titel not in data.keys():
-                data[titel] = [[], []]
+            if title not in data.keys():
+                data[title] = [[], [], []]
                 x = i[-1]
-                y = round(j._data[objectiveParameter], 2)
-                data[titel][0].append(x)
-                data[titel][1].append(y)
+                try:
+                    y = round(j._data[objectiveParameter], 2)
+                except:
+                    y = round(j[objectiveParameter], 2)
+
+                design = self.model_output.return_chosen(j)
+                outputsFlowSheet = self.find_outputs_flowsheet(design, j)
+
+                data[title][0].append(x)
+                data[title][1].append(y)
+                data[title][2].append(outputsFlowSheet)
+
             else:
                 x = i[-1]
-                y = round(j._data[objectiveParameter], 2)
-                data[titel][0].append(x)
-                data[titel][1].append(y)
+                try:
+                    y = round(j._data[objectiveParameter], 2)
+                except:
+                    y = round(j[objectiveParameter], 2)
+
+                design = self.model_output.return_chosen(j)
+                outputsFlowSheet = self.find_outputs_flowsheet(design, j)
+
+                data[title][0].append(x)
+                data[title][1].append(y)
+                data[title][2].append(outputsFlowSheet)
 
         return data
 
@@ -283,7 +302,10 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
 
         objectiveName = self.model_output._meta_data["Objective Function"]
 
-        ylab = ylabDict[objectiveName]
+        try:
+            ylab = ylabDict[objectiveName]
+        except:
+            ylab = objectiveName
 
         data = self._collect_sensi_data(objectiveParameter=objectiveName)
 
@@ -317,7 +339,7 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
                     if xlable:
                         ax.set_xlabel(xlable)
                     else:
-                        ax.set_xlabel("Discritised Parameter Values")
+                        ax.set_xlabel("Discretized Parameter Values")
 
                     ax.set_ylabel(ylab)
 
@@ -339,6 +361,260 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
             fig.savefig(saveString)
 
         return fig
+
+    def create_sensitivity_graph2(self, savePath=None, saveName=None,
+                                  figureMode='subplot', xlable=None):
+        """
+        Sensitivity graph:
+        - line color → parameter
+        - marker → flowsheet design (designStr)
+        - combined legend placed to the right of the plot
+        """
+
+        if self.model_output._optimization_mode != "sensitivity":
+            print("Sensitivity graph presentation only available for Sensitivity analysis mode")
+            return
+
+        ylabDict = {
+            "NPC": "Net production costs (€/t)",
+            "NPE": "Net production emissions (t-CO₂/t)",
+            "NPFWD": "Fresh Water usage (t-H₂O/t)",
+            "EBIT": "Earnings Before Income Tax (M€/y)",
+        }
+
+        objectiveName = self.model_output._meta_data["Objective Function"]
+        ylab = ylabDict.get(objectiveName, objectiveName)
+
+        data = self._collect_sensi_data(objectiveParameter=objectiveName)
+
+        # Reset style maps per figure
+        for attr in [
+            "_param_color_map", "_param_color_cycle",
+            "_design_marker_map", "_design_marker_cycle"
+        ]:
+            if hasattr(self, attr):
+                delattr(self, attr)
+
+        # ---------- SUBPLOT MODE ----------
+        if figureMode == "subplot":
+
+            nonflat_items = [
+                (title, values)
+                for title, values in data.items()
+                if max(values[1]) != min(values[1])
+            ]
+
+            if not nonflat_items:
+                print("No varying data to plot in sensitivity graph.")
+                return
+
+            fig = plt.figure(constrained_layout=True)
+            n_subplots = len(nonflat_items)
+
+            axes = []
+
+            for idx, (title, values) in enumerate(nonflat_items, start=1):
+
+                if len(values) == 3:
+                    x_vals, y_vals, refinery_designs = values
+                else:
+                    x_vals, y_vals = values
+                    refinery_designs = [["Default"]] * len(x_vals)
+
+                ax = fig.add_subplot(n_subplots, 1, idx)
+                axes.append(ax)
+
+                param_color = self._get_param_color(title)
+
+                design_groups = {}
+                for x, y, d in zip(x_vals, y_vals, refinery_designs):
+                    designStr = "_".join(str(u) for u in d)
+                    design_groups.setdefault(designStr, {"x": [], "y": []})
+                    design_groups[designStr]["x"].append(x)
+                    design_groups[designStr]["y"].append(y)
+
+                for designStr, coords in design_groups.items():
+                    ax.plot(
+                        coords["x"],
+                        coords["y"],
+                        linestyle="--",
+                        color=param_color,
+                        marker=self._get_design_marker(designStr),
+                    )
+
+                ax.set_xlabel(title)
+                ax.set_ylabel(ylab)
+
+            legend_ax = axes[-1]
+
+        # ---------- SINGLE MODE ----------
+        elif figureMode == "single":
+
+            fig, ax = plt.subplots(constrained_layout=True)
+            legend_ax = ax
+
+            for title, values in data.items():
+
+                if len(values) == 3:
+                    x_vals, y_vals, refinery_designs = values
+                else:
+                    x_vals, y_vals = values
+                    refinery_designs = [["Default"]] * len(x_vals)
+
+                if max(y_vals) == min(y_vals):
+                    continue
+
+                param_color = self._get_param_color(title)
+                x_plot = list(range(len(x_vals))) if len(data) > 1 else x_vals
+
+                design_groups = {}
+                for i, (y, d) in enumerate(zip(y_vals, refinery_designs)):
+                    designStr = "_".join(str(u) for u in d)
+                    design_groups.setdefault(designStr, {"x": [], "y": []})
+                    design_groups[designStr]["x"].append(x_plot[i])
+                    design_groups[designStr]["y"].append(y)
+
+                for designStr, coords in design_groups.items():
+                    ax.plot(
+                        coords["x"],
+                        coords["y"],
+                        linestyle="--",
+                        color=param_color,
+                        marker=self._get_design_marker(designStr),
+                    )
+
+            ax.set_xlabel(
+                xlable if xlable else
+                ("Discretized Parameter Values" if len(data) > 1 else "Parameter Value")
+            )
+            ax.set_ylabel(ylab)
+
+        else:
+            raise ValueError("Invalid figureMode. Choose either 'subplot' or 'single'.")
+
+        # ---------- COMBINED LEGEND (RIGHT SIDE) ----------
+        legend_handles = []
+
+        for param, color in self._param_color_map.items():
+            legend_handles.append(
+                Line2D([0], [0], color=color, linestyle="--", lw=2,
+                       label= param)
+            )
+
+        for designStr, marker in self._design_marker_map.items():
+            legend_handles.append(
+                Line2D([0], [0], color="black", linestyle="None",
+                       marker=marker, markersize=8,
+                       label=designStr)
+            )
+
+        legend_ax.legend(
+            handles=legend_handles,
+            loc="upper left",
+            bbox_to_anchor=(1.02, 1),
+            borderaxespad=0,
+            frameon=True,
+        )
+
+        if savePath is not None:
+            if saveName is not None:
+                saveString = f"{savePath}/{saveName}.png"
+            else:
+                saveString = f"{savePath}/sensitivity_graph_{self._case_time[0:13]}.png"
+
+            fig.savefig(saveString, bbox_inches="tight")
+
+        return fig
+
+    def _get_param_color(self, param_name):
+        """
+        Stable color per sensitivity parameter.
+        """
+        if not hasattr(self, "_param_color_map"):
+            self._param_color_map = {}
+            self._param_color_cycle = itertools.cycle(plt.cm.tab10.colors)
+
+        if param_name not in self._param_color_map:
+            self._param_color_map[param_name] = next(self._param_color_cycle)
+
+        return self._param_color_map[param_name]
+
+    def _get_design_marker(self, designStr):
+        """
+        Stable marker per flowsheet design (designStr).
+        """
+        if not hasattr(self, "_design_marker_map"):
+            self._design_marker_map = {}
+            self._design_marker_cycle = itertools.cycle(
+                ['o', 's', '^', 'D', 'P', 'X', '*', 'v', '<', '>']
+            )
+
+        if designStr not in self._design_marker_map:
+            self._design_marker_map[designStr] = next(self._design_marker_cycle)
+
+        return self._design_marker_map[designStr]
+
+
+    def _get_design_style(self, refinery_design):
+        """
+        Return a (color, marker) pair for a given refinery design.
+        Same design => same style across calls.
+        """
+
+        # Lazy initialisation of style-related attributes
+        if not hasattr(self, "_design_style_map"):
+            self._design_style_map = {}
+            self._design_color_cycle = itertools.cycle(plt.cm.tab10.colors)
+            self._design_marker_cycle = itertools.cycle(
+                ['o', 's', '^', 'D', 'P', 'X', '*', 'v', '<', '>']
+            )
+
+        if refinery_design not in self._design_style_map:
+            self._design_style_map[refinery_design] = {
+                "color": next(self._design_color_cycle),
+                "marker": next(self._design_marker_cycle),
+            }
+
+        return self._design_style_map[refinery_design]
+
+    def rank_local_sensitive_parameters(self):
+        """
+        Collects the data of each parameter analized and ranks the most influential parameters on the objective function
+        """
+
+        objectiveName = self.model_output._meta_data["Objective Function"]
+        data = self._collect_sensi_data(objectiveParameter=objectiveName)
+
+        # get the sensitivity for each parameter for each step taken
+        sensitivityDict = {}
+        for parameterName, points in data.items():
+            sens = []
+            yMax = max(points[1])
+            yMin = min(points[1])
+            for (p0, y0, _), (p1, y1, _) in zip(points, points[1:]):
+                dp = p1 - p0
+                dy = y1 - y0
+                if dp == 0 or dy == 0:
+                    # skip; dp=0 makes slope undefined
+                    # dy=0, don't bother with regions that don't affect the output
+                    continue
+                sens.append(dy/dp)
+
+            sensitivtyAvg = sum(sens) / len(sens)
+            sensitivityDict[parameterName] = [sensitivtyAvg, [yMin,yMax]]  # list of local sensitivities
+        # sort the dictionary from high to low
+        sensitivityDict = dict(
+            sorted(
+                sensitivityDict.items(),
+                key=lambda item: item[1][0],  # sensitivityAvg
+                reverse=True
+            )
+        )
+        return sensitivityDict
+
+
+
+
 
 
     # DESIGN SCREENING ALGORITHM METHODS

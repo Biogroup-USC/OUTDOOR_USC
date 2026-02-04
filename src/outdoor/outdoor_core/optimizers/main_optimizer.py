@@ -8,13 +8,17 @@ Created on Tue Jun 15 12:19:19 2021
 
 import pyomo.environ as pyo
 from pyomo.opt import TerminationCondition
-from pyomo.util.infeasible import log_infeasible_constraints
-import logging
+from numpy import linspace
+
+# from .customs.change_functions.parameter_changer_functions import *  # contains all funcitions to change the parameters in the model instance called in change_parameter
+# from ..utils.timer import time_printer
+# import re
 
 from ..output_classes.model_output import ModelOutput
 from ..output_classes.stochastic_model_output import StochasticModelOutput
 from ..utils.timer import time_printer
-
+#from pyomo.util.infeasible import log_infeasible_constraints
+#import logging
 
 class SingleOptimizer:
     """
@@ -213,3 +217,54 @@ class SingleOptimizer:
         else:
             pass
         return solver
+
+    # some class functions used for sensitivity analysis type optimization
+    # should move them all here honestly TODO Move functions of file change_params here
+
+    def calculate_sensitive_parameters(self, data_input):
+
+        value_dic = dict()
+
+        try:
+            # if the input come from the excel file
+            for i in data_input:
+                paramName = i['Parameter_Type']
+                # if the series has a number in the field Unit_Number, get the value of that number
+                if isinstance(i['Unit_Number'], int):  # if the value is an integer and i['Unit_Number'] is not 'n.a.'
+                    paramName = paramName + "_" + str(int(i['Unit_Number']))
+                start = i['Lower_Bound']
+                stop = i['Upper_Bound']
+                dx = i['Number_of_steps']
+                metadata = i.iloc[1:5]
+                value_dic[paramName] = (list(linspace(start, stop, dx)), metadata)
+            return value_dic
+
+        except:
+            # if the input come from the interface file
+
+            for n, i in enumerate(data_input):
+                paramName = i['parameterType']
+                unitUid = i['unitUid']
+                unitName = self.superstructure.UnitNames['Names'].get(unitUid, '')
+                paramName = paramName + "_"  + unitName
+
+                start = i['lowerBound']
+                stop = i['upperBound']
+                dx = int(i['steps'])
+                metadata = i.iloc[1:5]
+                # Rename column(s)
+                # change the column names of the metadata to that of the
+                # excel file so no downstream functions get blocked
+                # change column name "unitUid" to "Unit_Number"
+                # (metadata['Unit_Number'], (metadata['Component'], metadata['Reaction_Number']))
+
+                metadata = metadata.rename({
+                    "unitUid": "Unit_Number",
+                    "targetUnitProcess": "Target_Unit",
+                    "componentName": "Component",
+                    "reactionUid": "Reaction_Number"
+                })
+
+                value_dic[paramName] = (list(linspace(start, stop, dx)), metadata)
+
+            return value_dic

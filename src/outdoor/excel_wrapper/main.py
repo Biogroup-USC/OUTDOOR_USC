@@ -12,7 +12,7 @@ import warnings
 
 import pandas as pd
 
-from .wrapp_parameters_optimisation_mode import wrapp_stochastic_data, wrapp_sensitivty_data, wrapp_multi_objective_data
+from .wrapp_parameters_optimisation_mode import wrapp_stochastic_data, wrapp_sensitivity_data, wrapp_multi_objective_data
 from .wrapp_processes import wrapp_processUnits, wrapp_productPoolUnits, wrapp_sourceUnits, wrapp_distributors
 from .wrapp_system import wrapp_SystemData
 from ..outdoor_core.utils.progress_bar import print_progress_bar  # , print_progress_bar
@@ -197,7 +197,7 @@ def get_DataFromExcel(path=None,
 
     elif _optimization_mode == 'sensitivity' or _optimization_mode == 'cross-parameter sensitivity':
         # collect the sensitivity data & automatically add it to the Superstructure_Object
-        wrapp_sensitivty_data(Superstructure_Object, dataframe['Sensitivity'], cross_sensitivity_params)
+        wrapp_sensitivity_data(Superstructure_Object, dataframe['Sensitivity'], cross_sensitivity_params)
 
     elif _optimization_mode == 'multi-objective':
         # collect the multi-objective data & automatically add it to the Superstructure_Object

@@ -288,6 +288,9 @@ class MultiObjectiveOptimizer(SingleOptimizer):
 
         return model_output
 
+    def run_optimization_multi_sensitivity(self):
+        pass
+
     def change_model_objective(self, model_instance, objective, flipSense=False):
         """
         This function is used to change the objective function of the model instance
@@ -582,7 +585,7 @@ class MultiObjectiveOptimizer(SingleOptimizer):
         except:
             if bound is not None:
                 raise Exception("The optimization problem is infeasible for the bound: {}"
-                                " \n of objective {}, please choose another".format(bound, objective))
+                                " \n of objective {}, please choose another".format(bound, objective2bound))
             else:
                 raise Exception("The optimization problem is infeasible, check for model "
                                 "inconsistencies")
@@ -614,7 +617,7 @@ class SensitivityOptimizer(SingleOptimizer):
                          count_variables_constraints = False):
 
         timer1 = time_printer(programm_step="Sensitivity optimization")
-        sensi_data_Dict_lists = calculate_sensitive_parameters(self.sensi_data)
+        sensi_data_Dict_lists = self.calculate_sensitive_parameters(self.sensi_data)
 
         initial_model_instance = model_instance.clone()
         time_printer(passed_time=timer1, programm_step="Create initial ModelInstance copy")
@@ -704,7 +707,7 @@ class TwoWaySensitivityOptimizer(SingleOptimizer):
                          ):
 
         timer1 = time_printer(programm_step="Two-way sensitivity optimimization")
-        self.cross_parameters = calculate_sensitive_parameters(self.cross_parameters)
+        self.cross_parameters = self.calculate_sensitive_parameters(self.cross_parameters)
 
         model_output = MultiModelOutput(optimization_mode="cross-parameter sensitivity")
 

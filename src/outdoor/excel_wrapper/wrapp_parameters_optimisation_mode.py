@@ -57,7 +57,7 @@ def wrapp_stochastic_data(dfi, seed=66, scenario_size=None):
 
     return obj
 
-def wrapp_sensitivty_data(obj, dfi, cross_sensitivity_params):
+def wrapp_sensitivity_data(obj, dfi, cross_sensitivity_params):
 
     sensitivity_data = {}
 

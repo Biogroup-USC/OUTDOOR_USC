@@ -16,6 +16,7 @@ from numpy import linspace
 
 from .change_functions.parameter_changer_functions import *  # contains all funcitions to change the parameters in the model instance called in change_parameter
 from ...utils.timer import time_printer
+import re
 
 
 # from .change_functions.utility_cost_changer import change_utility_costs
@@ -36,49 +37,58 @@ def calculate_sensitive_parameters(data_input):
 
     value_dic = dict()
 
-    for i in data_input:
+    try:
+        # if the input come from the excel file
+        for i in data_input:
+            paramName = i['Parameter_Type']
+            # if the series has a number in the field Unit_Number, get the value of that number
+            if isinstance(i['Unit_Number'], int):  # if the value is an integer and i['Unit_Number'] is not 'n.a.'
+                paramName = paramName + "_" + str(int(i['Unit_Number']))
+            start = i['Lower_Bound']
+            stop = i['Upper_Bound']
+            dx = i['Number_of_steps']
+            metadata = i.iloc[1:5]
+            value_dic[paramName] = (list(linspace(start, stop, dx)), metadata)
+        return value_dic
 
-        paramName = i['Parameter_Type']
-        # if the series has a number in the field Unit_Number, get the value of that number
-        if isinstance(i['Unit_Number'], int):  # if the value is an integer and i['Unit_Number'] is not 'n.a.'
-            paramName = paramName + "_" + str(int(i['Unit_Number']))
-        start = i['Lower_Bound']
-        stop = i['Upper_Bound']
-        dx = i['Number_of_steps']
-        metadata = i.iloc[1:5]
-        value_dic[paramName] = (list(linspace(start, stop, dx)), metadata)
+    except:
+        # if the input come from the interface file
 
-        # if
-        # changed to dictionary to make it more readable
-        # if len(i) == 4:
-        #     value_dic[i[0]] = list(linspace(start, stop, dx))
-        # elif len(i) == 5:
-        #     try:
-        #         value_dic[i[0]][i[4]] = list(linspace(start, stop, dx))
-        #     except:
-        #         value_dic[i[0]] = {}
-        #         value_dic[i[0]][i[4]] = list(linspace(start, stop, dx))
+        for n, i in enumerate(data_input):
+            paramName = i['parameterType']
+            unitUid = i['unitUid'][0:3]
+            paramName = paramName + "_" + str(n) + ""
 
-    return value_dic
+            start = i['lowerBound']
+            stop = i['upperBound']
+            dx = int(i['steps'])
+            metadata = i.iloc[1:5]
+            # Rename column(s)
+            # change the column names of the metadata to that of the
+            # excel file so no downstream functions get blocked
+            # change column name "unitUid" to "Unit_Number"
+            # (metadata['Unit_Number'], (metadata['Component'], metadata['Reaction_Number']))
+
+            metadata = metadata.rename({
+                "unitUid": "Unit_Number",
+                "targetUnitProcess": "Target_Unit",
+                "componentName": "Component",
+                "reactionUid": "Reaction_Number"
+            })
+
+
+            value_dic[paramName] = (list(linspace(start, stop, dx)), metadata)
+
+        return value_dic
 
 
 def error_func(*args):
-    raise ValueError("Parameter {} not in Variation Parameter set deffining all changer functions".format(args[-1]))
+    raise ValueError("Parameter {} not in Variation Parameter set defining all changer functions".format(args[-1]))
 
 
 def change_parameter(Instance, parameter, value, metadata=None, superstructure=None, printTimer=True):
 
     timer = time_printer(programm_step = 'Changing parameter {}'.format(parameter), printTimer=printTimer)
-
-    if '_' in parameter:
-        #parameter = '_'.join(parameter.rsplit('_', 1)[:-1])
-        # This will give you the whole string except the last split-off fraction which is the unit number.
-        parameterParts = parameter.split('_') # remove the number from the parameter name
-        parameterSuffix = parameterParts[-1] # get the number from the parameter name
-        # if the second part of the parameter name is a number, parameter becomes parameterN
-        if parameterSuffix.isnumeric():
-            parameter = '_'.join(parameter.rsplit('_', 1)[:-1]) # remove the number from the parameter name
-
 
     function_dictionary = {
         # these are also parameters that can be changed in the stochastic mode
@@ -115,6 +125,17 @@ def change_parameter(Instance, parameter, value, metadata=None, superstructure=N
         # "product_price": change_product_price,
     }
 
+    # list of possible parameters which are mutable
+    paramList = list(function_dictionary.keys())
+
+    if "electricity_price" in parameter:
+        parameter = "Electricity price (delta_ut)"
+    else:
+        for p in paramList:
+            if p in parameter:
+                parameter = p
+                break
+
     function_dictionary.get(parameter, error_func)(Instance, value, metadata, superstructure, parameter)
     #timer = time_printer(timer, 'Change parameter')
     return Instance
@@ -131,13 +152,19 @@ def prepare_mutable_parameters(ModelInstance, input_data):
             instance.tau_c._mutable = True
             instance.tau._mutable = True
 
-
     for i in input_data:
         param_name = i.iloc[0]
         if param_name == "Reference Capital costs (C_Ref)" or param_name == "Heating demand (tau_h)":
             # if more than one parameter is changed at the same time, we need to set them mutable using the
             # set_mutable function
             set_mutable(ModelInstance, param_name)
+
+        elif param_name == "electricity_price":
+
+            param = getattr(ModelInstance, "delta_ut")  # Dynamically access the parameter
+            # change the parameter to mutable
+            param._mutable = True
+
         else:
             #param_id = param_name.split("(")[-1][0:-1] # Get the parameter name in between the brackets
             param_id = extract_string_between_brackets(param_name)
@@ -147,7 +174,7 @@ def prepare_mutable_parameters(ModelInstance, input_data):
 
     return ModelInstance
 
-import re
+
 def extract_string_between_brackets(s):
     # Regular expression pattern to match text within parentheses
     pattern = r'\((.*?)\)'

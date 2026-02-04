@@ -40,7 +40,8 @@ def change_myu_parameter(Instance, Value, metadata, *args):
     :return: model instance
     """
     # nrComponentTuple = (unitNr, (targetUnit, component))
-    index = (metadata['Unit_Number'], int(metadata['Target_Unit']), metadata['Component'])
+
+    index = (metadata['Unit_Number'], metadata['Target_Unit'], metadata['Component'])
     try :
         Instance.myu[index] = Value
     except KeyError:
