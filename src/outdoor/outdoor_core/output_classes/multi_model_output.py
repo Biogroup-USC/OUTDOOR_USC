@@ -146,7 +146,7 @@ class MultiModelOutput(ModelOutput):
         try:
             firstKey = list(self._results_data.keys())[0]
             resultsFirstRun = self._results_data[firstKey]
-            Objective = resultsFirstRun._data['Objective Function']
+            Objective = resultsFirstRun._data['ObjectiveFunctionName']
             self._meta_data["Objective Function"] = Objective
         except:
             self._meta_data["Objective Function"] = "No objective function found"

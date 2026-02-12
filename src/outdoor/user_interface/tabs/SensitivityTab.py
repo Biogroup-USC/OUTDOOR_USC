@@ -149,7 +149,11 @@ class SensitivityTab(QWidget):
                                       "Costs (materialcosts)",
                                       "Price (ProductPrice)",
                                       "electricity_price",
-                                      "heat_price"]
+                                      "heat_price",
+                                      "Heating demand 1 (tau_h)",
+                                      "Heating demand 2 (tau_h)",
+                                      "Electricity demand (tau)",
+                                      "Chilling demand (tau)"]
 
                     # make a combobox for the parameter type
                     self.comboBoxParameterType = ComboBox()
@@ -293,6 +297,10 @@ class SensitivityTab(QWidget):
             elif paramType == "Conversion factor (theta)" or paramType == "Stoichiometric factor (gamma)":
                 # set the reactionUID column and the target Unit UID un-editable,gray and have a value of n.a.
                 self._updateColumnEditability(row, [3])
+
+            elif (paramType == "Heating demand 1 (tau_h)" or paramType == "Heating demand 2 (tau_h)" or
+                  paramType == "Electricity demand (tau)" or paramType =="Chilling demand (tau)"):
+                self._updateColumnEditability(row, [2, 3, 4])
 
             else:
                 self.logger.error('Missed logic for {}'.format(paramType))

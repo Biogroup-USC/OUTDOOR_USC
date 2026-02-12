@@ -125,8 +125,12 @@ class SuperstructureProblem:
 
         # change the model objective in the inputdata if given as a input to the methode
         if modelObjective:
-            #input_data
-            pass
+            if modelObjective not in input_data.OBJECTIVE_SET:
+                raise Exception("modelObjective: {} is not a valid objective."
+                                "\n Please select from the following list: {}".format(modelObjective,input_data.OBJECTIVE_SET))
+            else:
+                input_data.objective = modelObjective
+
 
         # check if the stochastic mode is set correctly for the 2-stage-recourse optimization mode
         self.stochastic_mode = input_data.stochasticMode

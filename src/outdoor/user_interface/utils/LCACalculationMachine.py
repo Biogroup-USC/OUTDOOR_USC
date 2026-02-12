@@ -44,49 +44,19 @@ class LCACalculationMachine:
             bwProjectNames.append(projectName)
 
         if not bwProjectNames:
-            self.logger.error("No Brightway projects found. Please Install the databases proparly.")
+            self.logger.error("No Brightway projects found. Please Install the databases properly.")
             # close the calculation machine
             return
 
-        if "outdoor" in bwProjectNames:
-            bw.projects.set_current("outdoor")
-            self.eidb = bw.Database('ecoinvent-3.9.1-consequential')
-            self.bios = bw.Database('ecoinvent-3.9.1-biosphere')
-            # check the size of the databases
-            if len(self.eidb) < 1 and len(self.bios) < 1:
-                self.logger.warning("No databases found in project 'outdoor'.")
-                self.logger.info("Attempting to register the with an other database.")
-
-                bwProjectNames.remove('outdoor')
-                for projectName in bwProjectNames:
-                    try:
-                        bw.projects.set_current(projectName)
-                        self.eidb = bw.Database('ecoinvent-3.9.1-consequential')
-                        self.bios = bw.Database('ecoinvent-3.9.1-biosphere')
-                        if len(self.eidb) > 0 and len(self.bios) > 0:
-                            self.logger.info(f"Found valid Ecoinvent database in project {projectName}.")
-                            break
-
-                    except Exception as e:
-                        self.logger.error(f"Could not setup a brightway project {projectName}: {e}")
-                        self.logger.info("Make sure the Installation has been done correctly!!.")
-
-        else:
-            self.logger.warning("No Brightway project called 'outdoor' found. "
-                                "Attempting to load databases from other projects in BrightWay.")
-
-            for projectName in bwProjectNames:
-                try:
-                    bw.projects.set_current(projectName)
-                    self.eidb = bw.Database('ecoinvent-3.9.1-consequential')
-                    self.bios = bw.Database('ecoinvent-3.9.1-biosphere')
-                    if len(self.eidb) > 0 and len(self.bios) > 0:
-                        self.logger.info(f"Found valid Ecoinvent database in project {projectName}.")
-                        break
-
-                except Exception as e:
-                    self.logger.error(f"Could not setup a brightway project {projectName}: {e}")
-                    self.logger.info("Make sure the Installation has been done correctly!.")
+        projectName = self.centralDataManager.bdProjectName
+        bw.projects.set_current(projectName)
+        self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
+        self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
+        # check the size of the databases
+        if len(self.eidb) < 1 and len(self.bios) < 1:
+            self.logger.warning("No databases found in project '{}'".format(projectName))
+            self.logger.error("please check if you have correctly installed ecoinvent databases.")
+            return
 
         self.outd = bw.Database('outdoor')
 
@@ -313,15 +283,24 @@ class LCACalculationMachine:
         Selects the correct methods (mid and or end-points) according to the LCA methodology selected by the user.
         returns: list of methods
         """
-        if self.methodSelectionLCA == "ReCiPe 2016 v1.03 (default)":
+        if self.methodSelectionLCA == "ReCiPe 2016 v1.03 midpoint + endpoint (H)":
             return self._recipe_base_methods()
+
+        elif self.methodSelectionLCA == "ReCiPe 2016 v1.1 midpoint + endpoint (H)":
+            return self._recipe_V_1_1_methods()
 
         elif self.methodSelectionLCA == "IPCC 2013":
             return self._IPCC_methods()
 
-        else:
+        elif self.methodSelectionLCA == "ReCiPe 2016 v1.03 [bio=1] (custom: biogenic = fossil)":
             return self._ensure_biogenic_equals_fossil()
+
+        else:
+            self.logger.error("Method selection failed, using default method: "
+                              "\n ReCipe 2016 v1.03 midpoint + endpoint (H)")
+            return self._recipe_base_methods()
         # add other methods here if you want
+
 
     def getImpactDict(self):
         methods = self.getImpactMethods()
@@ -359,11 +338,19 @@ class LCACalculationMachine:
         return updated_count
 
     def _recipe_base_methods(self):
-        """Original ReCiPe selections."""
+        """Default ReCiPe selections."""
         midpoint = [m for m in bw.methods
                     if "ReCiPe 2016 v1.03, midpoint (H)" in str(m) and "no LT" not in str(m)]
         endpoints = [m for m in bw.methods
                      if "ReCiPe 2016 v1.03, endpoint (H)" in str(m) and "no LT" not in str(m) and "total" in str(m)]
+        return midpoint + endpoints
+
+    def _recipe_V_1_1_methods(self):
+        """ ReCiPe selections Version 1.1"""
+        midpoint = [m for m in bw.methods
+                    if "ReCiPe 2016 v1.1, midpoint (H)" in str(m) and "no LT" not in str(m)]
+        endpoints = [m for m in bw.methods
+                     if "ReCiPe 2016 v1.1, endpoint (H)" in str(m) and "no LT" not in str(m) and "total" in str(m)]
         return midpoint + endpoints
 
     def _IPCC_methods(self):

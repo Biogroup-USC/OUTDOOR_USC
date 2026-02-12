@@ -3,18 +3,36 @@ import bw2io as bi
 import multiprocessing
 
 
-def import_ecoinvent(projectName):
-    print("The following projects are available in Brightway:")
-    print(bd.projects)
+def import_ecoinvent(projectName, version="3.9.1", system_model="consequential"):
 
+    print("The following projects are available in Brightway:")
+    print(list(bd.projects))
+
+    # Create project if needed
     if projectName not in bd.projects:
         bd.projects.create_project(projectName)
 
     bd.projects.set_current(projectName)
 
-    if not bd.databases:
-        print("Installing the database from Ecoinvent under projectName '{}': ".format(projectName))
-        # This will install the outdoor database from Ecoinvent
+    # Construct expected database names
+    ei_name = f"ecoinvent-{version}-{system_model}"
+    bios_name = f"ecoinvent-{version}-biosphere"
+
+    print("\nDatabases currently in this project:")
+    print(list(bd.databases))
+
+    # STOP if database already exists
+    if ei_name in bd.databases:
+        print(f"\nDatabase '{ei_name}' already exists in project '{projectName}'.")
+        print("Skipping import.")
+        # print in green
+        print("\033[92m" + "Brightway already installed" + "\033[0m")
+        print(bd.projects.dir)
+        print(bd.__version__)
+
+        return
+
+    else:
         try:
             # get input from the user, print the message in bold purple
             print("")
@@ -24,8 +42,8 @@ def import_ecoinvent(projectName):
 
             # Add use_mp=False to avoid multiprocessing issues
             bi.import_ecoinvent_release(
-                version="3.9.1",
-                system_model="consequential",
+                version=version,
+                system_model=system_model,
                 username=username,
                 password=password,
             )
@@ -37,11 +55,6 @@ def import_ecoinvent(projectName):
         except Exception as e:
             print("The following error occurred:", e)
             return
-    else:
-        # print in green
-        print("\033[92m" + "Brightway already installed" + "\033[0m")
-        print(bd.projects.dir)
-        print(bd.__version__)
 
 
 def check_project_database(projectName):
@@ -85,7 +98,7 @@ def check_project_database(projectName):
 if __name__ == "__main__":
     # Add freeze_support for Windows
     multiprocessing.freeze_support()
-    import_ecoinvent(projectName='outdoor')
+    import_ecoinvent(projectName='outdoor', version="3.11", system_model="cutoff")
 
     # Check the project database
     check_project_database(projectName='outdoor')

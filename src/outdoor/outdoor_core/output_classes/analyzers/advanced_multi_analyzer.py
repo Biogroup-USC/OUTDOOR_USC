@@ -221,7 +221,7 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
     # ANALYSIS METHODS FOR SENSITIVITY MODE
     # ------------------------------------
 
-    def _collect_sensi_data(self, objectiveParameter):
+    def _collect_sensi_data(self, objectiveParameter, roundDecimal=2):
         """
 
         Returns
@@ -244,9 +244,15 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
                 data[title] = [[], [], []]
                 x = i[-1]
                 try:
-                    y = round(j._data[objectiveParameter], 2)
+                    if objectiveParameter in j._data['IMPACT_TOT'].keys():
+                        y = round(j._data['IMPACT_TOT'][objectiveParameter], roundDecimal)
+                    else:
+                        y = round(j._data[objectiveParameter], roundDecimal)
                 except:
-                    y = round(j[objectiveParameter], 2)
+                    if objectiveParameter in j['IMPACT_TOT'].keys():
+                        y = round(j['IMPACT_TOT'][objectiveParameter], roundDecimal)
+                    else:
+                        y = round(j[objectiveParameter], roundDecimal)
 
                 design = self.model_output.return_chosen(j)
                 outputsFlowSheet = self.find_outputs_flowsheet(design, j)
@@ -258,9 +264,15 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
             else:
                 x = i[-1]
                 try:
-                    y = round(j._data[objectiveParameter], 2)
+                    if objectiveParameter in j._data['IMPACT_TOT'].keys():
+                        y = round(j._data['IMPACT_TOT'][objectiveParameter], roundDecimal)
+                    else:
+                        y = round(j._data[objectiveParameter], roundDecimal)
                 except:
-                    y = round(j[objectiveParameter], 2)
+                    if objectiveParameter in j['IMPACT_TOT'].keys():
+                        y = round(j['IMPACT_TOT'][objectiveParameter], roundDecimal)
+                    else:
+                        y = round(j[objectiveParameter], roundDecimal)
 
                 design = self.model_output.return_chosen(j)
                 outputsFlowSheet = self.find_outputs_flowsheet(design, j)
@@ -363,7 +375,7 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
         return fig
 
     def create_sensitivity_graph2(self, savePath=None, saveName=None,
-                                  figureMode='subplot', xlable=None):
+                                  figureMode='subplot', xlable=None, roundDecimal=2):
         """
         Sensitivity graph:
         - line color → parameter
@@ -385,7 +397,7 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
         objectiveName = self.model_output._meta_data["Objective Function"]
         ylab = ylabDict.get(objectiveName, objectiveName)
 
-        data = self._collect_sensi_data(objectiveParameter=objectiveName)
+        data = self._collect_sensi_data(objectiveParameter=objectiveName, roundDecimal=roundDecimal)
 
         # Reset style maps per figure
         for attr in [
@@ -579,7 +591,7 @@ class AdvancedMultiModelAnalyzer(BasicModelAnalyzer):
 
     def rank_local_sensitive_parameters(self):
         """
-        Collects the data of each parameter analized and ranks the most influential parameters on the objective function
+        Collects the data of each parameter analyzed and ranks the most influential parameters on the objective function
         """
 
         objectiveName = self.model_output._meta_data["Objective Function"]

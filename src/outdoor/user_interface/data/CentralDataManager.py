@@ -50,6 +50,11 @@ class CentralDataManager:
         self.sensitivityData: list[SensitivityDTO] = []
         self.BWPROJECTNAME = "superstructure"  # this needs to be changed in the configs or something because it's actual satan.
         self.methodSelectionLCA: str = ""
+        # ecoinvent vars
+        self.bdProjectName: str = ""
+        self.technosphereDatabaseLCA: str = ""
+        self.biosphereDatabaseLCA: str = ""
+        self.methodSelectionLCA: str = ""
 
     def addData(self, field:str, data):
         """
@@ -176,8 +181,8 @@ class CentralDataManager:
                         for row in reader:
                             compconfs[row[0]] = row[1]
                         self.configs['componentConfigs'] = compconfs
-        except Exception as e:
-            self.logger.error("Error reloading configs file, initializing with defaults.: ", e)
+        except:
+            self.logger.warning("Error reloading configs file, initializing with defaults.")
             self._loadDefaults()
 
     def _loadDefaults(self):

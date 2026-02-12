@@ -797,7 +797,6 @@ class TwoWaySensitivityOptimizer(SingleOptimizer):
         model_output.add_process((paramName1, paramVal1, paramName2, paramVal2), single_solved)
         return (paramName1, paramVal1, paramName2, paramVal2), single_solved
 
-
 class StochasticRecourseOptimizer(SingleOptimizer):
     # NOT USED ANYMORE IN THE NEW VERSION, SEE StochasticOptimizer_mpi_sppy!!
     # keep it for now, just in case I need code snippets from it

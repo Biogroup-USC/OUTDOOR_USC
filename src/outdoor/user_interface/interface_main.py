@@ -4,7 +4,7 @@ import pickle
 import sys
 import pandas as pd
 import coloredlogs
-from PyQt5.QtWidgets import QTabWidget, QApplication, QMainWindow, QAction, QFileDialog, QDialog
+from PyQt5.QtWidgets import QTabWidget, QApplication, QMainWindow, QAction, QFileDialog, QDialog, QMessageBox
 from pyparsing import empty
 import bw2data as bw
 from outdoor.user_interface.data.CentralDataManager import CentralDataManager
@@ -25,7 +25,7 @@ from outdoor.user_interface.tabs.ProjectDescriptionTab import ProjectDescription
 from outdoor.user_interface.tabs.UncertaintyTab import UncertaintyTab
 from outdoor.user_interface.utils.OutdoorLogger import outdoorLogger
 from outdoor.user_interface.data.ProcessDTO import ProcessType
-from outdoor.user_interface.dialogs.MethodLCADialog import MethodologyDialog
+from outdoor.user_interface.dialogs.MethodLCADialog import MethodologyLcaDialog
 
 import logging
 
@@ -82,18 +82,22 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         # add superstructure generation button
         self.superStructureAction = QAction('Generate Superstructure', self)
         self.superStructureAction.triggered.connect(self.generateSuperstructureObject) # connect to method
+        structureMenu.addAction(self.superStructureAction)
 
+        lcaMenu = menu_bar.addMenu('LCA')
         # add calculate LCA button
         self.calcLCAAction = QAction('Calculate all LCAs', self)
         self.calcLCAAction.triggered.connect(self.calculateAllLCAs)# connect to method
-
         # add print reference to consul
         self.printRefLCA = QAction('Print References LCA', self)
         self.printRefLCA.triggered.connect(self.printReferencesLCA)  # connect to method
+        # set up database and calculation methode
+        self.setUpLcaAction = QAction('Set up', self)
+        self.setUpLcaAction.triggered.connect(self.setUpLca)  # connect to method
 
-        structureMenu.addAction(self.superStructureAction)
-        structureMenu.addAction(self.calcLCAAction)
-        structureMenu.addAction(self.printRefLCA)
+        lcaMenu.addAction(self.setUpLcaAction)
+        lcaMenu.addAction(self.calcLCAAction)
+        lcaMenu.addAction(self.printRefLCA)
 
         self.initTabs()
 
@@ -322,9 +326,16 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         :return:
         """
         # create a dialog widget so that we can extract the methodology we want to use to calculate the CF
-        dialog = MethodologyDialog(self.centralDataManager)
-        if dialog.exec_() != QDialog.Accepted:
-            return  # user cancelled
+        #dialog = MethodologyLcaDialog(self.centralDataManager)
+        #if dialog.exec_() != QDialog.Accepted:
+        #    return  # user cancelled
+
+        # create an error message if the LCA methodology has not yet been DEFINED
+        if not self.centralDataManager.technosphereDatabaseLCA:
+            self._showErrorDialog(message="The options for the LCA calculation "
+                                          "has not been set up yet. "
+                                          "\n Please set up in the menu top left under LCA")
+
 
         LCAmethod = self.centralDataManager.methodSelectionLCA
         if LCAmethod:
@@ -372,6 +383,31 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         for key, val in inventory.items():
             print(key, val)
         #print(inventory)
+
+    def setUpLca(self):
+        # create a dialog widget so that we can extract the methodology we want to use to calculate the CF
+        dialog = MethodologyLcaDialog(self.centralDataManager)
+        if dialog.exec_() != QDialog.Accepted:
+            return  # user cancelled
+
+    def _showErrorDialog(self, message, type='Critical', title='Error'):
+        """
+        Show an error dialog with the message provided.
+        :param message: Message to show in the dialog
+        """
+        baseErrorMessage = "Error creating the superstructure object: \n"
+
+        errorDialog = QMessageBox()
+        if type == 'Critical':
+            errorDialog.setIcon(QMessageBox.Critical)
+        elif type == 'Warning':
+            errorDialog.setIcon(QMessageBox.Warning)
+        else:
+            errorDialog.setIcon(QMessageBox.Information)
+
+        errorDialog.setWindowTitle(title)
+        errorDialog.setText(baseErrorMessage + message)
+        errorDialog.exec_()
 
 
 def checkFocus():

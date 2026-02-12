@@ -1349,7 +1349,14 @@ class PhysicalProcessesDialog(QDialog):
         if idsInflowingUnits:
             for id, streamNumber in idsInflowingUnits.items():  # THIS IS A DICT idsInflowingUnits
                 #  figure out where we can find the streams number
-                InflowingUnitDTO = self.centralDataManager.unitProcessData[id]
+                try:
+                    InflowingUnitDTO = self.centralDataManager.unitProcessData[id]
+                except KeyError:
+                    # fixme: I can't find the reason why this should occure?
+                    #  seems like ghost unit processes are sometimes still saved somehow need to check deleting functions
+                    self.logger.error("Could not find the unit id: {} in the centralDataManager".format(id))
+                    return []
+
                 inFlowingChemicals = InflowingUnitDTO.getOutgoingChemicals(streamNumber)
                 chemicals += inFlowingChemicals
                 # the chemicals are not found in the incoming stream because their is no fraction of the chemicals

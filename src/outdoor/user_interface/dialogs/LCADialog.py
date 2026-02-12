@@ -80,8 +80,8 @@ class LCADialog(QDialog):
 
         if "outdoor" in bwProjectNames:
             bw.projects.set_current("outdoor")
-            self.eidb = bw.Database('ecoinvent-3.9.1-consequential')
-            self.bios = bw.Database('ecoinvent-3.9.1-biosphere')
+            self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
+            self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
             # check the size of the databases
             if len(self.eidb) < 1 and len(self.bios) < 1:
                 self.logger.warning("Project 'outdoor' has empty databases.")
@@ -91,8 +91,8 @@ class LCADialog(QDialog):
                 for projectName in bwProjectNames:
                     try:
                         bw.projects.set_current(projectName)
-                        self.eidb = bw.Database('ecoinvent-3.9.1-consequential')
-                        self.bios = bw.Database('ecoinvent-3.9.1-biosphere')
+                        self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
+                        self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
                         if len(self.eidb) > 0 and len(self.bios) > 0:
                             self.logger.info(f"Found valid Ecoinvent databases in project '{projectName}'.")
                             break
@@ -108,8 +108,8 @@ class LCADialog(QDialog):
             for projectName in bwProjectNames:
                 try:
                     bw.projects.set_current(projectName)
-                    self.eidb = bw.Database('ecoinvent-3.9.1-consequential')
-                    self.bios = bw.Database('ecoinvent-3.9.1-biosphere')
+                    self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
+                    self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
 
                     if len(self.eidb) > 0 and len(self.bios) > 0:
                         self.logger.info(f"Found valid Ecoinvent database in project {projectName}.")
@@ -122,8 +122,8 @@ class LCADialog(QDialog):
         self.outd = bw.Database('outdoor')
 
         # previous version with no checks.
-        # self.eidb = bw.Database('ecoinvent-3.9.1-consequential')
-        # self.bios = bw.Database('ecoinvent-3.9.1-biosphere')
+        # self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
+        # self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
         # self.outd = bw.Database('outdoor')
 
         try:

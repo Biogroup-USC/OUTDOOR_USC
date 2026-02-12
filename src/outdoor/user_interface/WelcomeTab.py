@@ -29,10 +29,10 @@ class WelcomeTab(QWidget):
         self.logoLabel = QLabel()
         self.logoPixmap = QPixmap(logoPath)
 
-        if self.logoPixmap.isNull():
-            print(f"Failed to load the logo image from: {logoPath}")
-        else:
-            print(f"Successfully loaded the logo image from: {logoPath}")
+        #if self.logoPixmap.isNull():
+        #    print(f"Failed to load the logo image from: {logoPath}")
+        #else:
+        #    print(f"Successfully loaded the logo image from: {logoPath}")
 
         # Resize the pixmap to the desired size while maintaining aspect ratio
         self.scaledLogoPixmap = self.logoPixmap.scaled(500, 500, Qt.KeepAspectRatio,
