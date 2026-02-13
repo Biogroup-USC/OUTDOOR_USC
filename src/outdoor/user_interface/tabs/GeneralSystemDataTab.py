@@ -26,9 +26,81 @@ class GeneralSystemDataTab(QWidget):
 
         # Create a new QWidget for the General System Data tab
         self.layout = QFormLayout(self)
+        self.layout.setVerticalSpacing(6)
+        self.layout.setHorizontalSpacing(12)
+        self.layout.setContentsMargins(10, 8, 10, 8)
         self.subtitleFont = QFont("Arial", 11, QFont.Bold)
-        # Set the background color of the widget
-        self.setStyleSheet("background-color: #f5f5f5;")
+        # Modernized style for the tab
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #f8fafc;
+            }
+            QLabel {
+                color: #334155;
+                background: transparent;
+            }
+            QLineEdit {
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 4px 8px;
+                background-color: #ffffff;
+                selection-background-color: #b0daff;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3b82f6;
+            }
+            QComboBox {
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 4px 8px;
+                background-color: #ffffff;
+                color: #0f172a;
+                padding-right: 20px;
+            }
+            QComboBox:focus {
+                border: 1px solid #3b82f6;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 16px;
+                border: none;
+            }
+            QPushButton {
+                color: #ffffff;
+                background-color: #2563eb;
+                border: 1px solid #1d4ed8;
+                border-radius: 8px;
+                font: bold 13px;
+                padding: 7px 12px;
+            }
+            QPushButton:hover {
+                background-color: #1d4ed8;
+            }
+            QPushButton:pressed {
+                background-color: #1e40af;
+            }
+            QTableWidget {
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                background-color: #ffffff;
+                selection-background-color: #b0daff;
+            }
+            QLineEdit:disabled {
+                background-color: #f5f5f5;
+                color: #666666;
+            }
+            QComboBox:disabled {
+                background-color: #f5f5f5;
+                color: #666666;
+            }
+            QLabel#sectionTitle {
+                color: #1e293b;
+                font-weight: 700;
+                font-size: 13px;
+                padding: 5px 0px 2px 0px;
+            }
+        """)
 
         # Title for the general system data (centered)
         self.createSectionTitle(text="General System Data", centerAlign=False, color="#C7CEEA")
@@ -192,23 +264,6 @@ class GeneralSystemDataTab(QWidget):
         # Connect the signal to the slot function
         self.heatPumpDropdown.currentIndexChanged.connect(lambda: self.heatPumpSwitch())
 
-        # layout widgets:
-        # Customize the appearance of line edits and combo boxes
-        lineEditStyleSheet = "QLineEdit { border-radius: 5px; padding: 5px; background-color: #ffffff; }"
-        comboBoxStyleSheet = "QComboBox { border-radius: 5px; padding: 3px; background-color: #ffffff; }"
-        pushButtonStyleSheet = "QPushButton { border-radius: 5px; padding: 5px; background-color: #FFAAEE; }"
-
-        # Apply the stylesheets to the form layout's children
-        for row in range(self.layout.rowCount()):
-            for index in range(self.layout.rowCount()):
-                widget = self.layout.itemAt(index, QFormLayout.FieldRole).widget()
-                if isinstance(widget, QLineEdit):
-                    widget.setStyleSheet(lineEditStyleSheet)
-                elif isinstance(widget, QComboBox):
-                    widget.setStyleSheet(comboBoxStyleSheet)
-                elif isinstance(widget, QPushButton):
-                    widget.setStyleSheet(pushButtonStyleSheet)
-
         # Set the layout on the generalSystemDataWidget
         self.setLayout(self.layout)
         # set the switch
@@ -220,8 +275,8 @@ class GeneralSystemDataTab(QWidget):
 
     def createSectionTitle(self, text, color="#e1e1e1", centerAlign=False):
         title = QLabel(text)
+        title.setObjectName("sectionTitle")
         title.setFont(self.subtitleFont)
-        title.setStyleSheet(f"background-color: {color}; padding: 3px;")
         if centerAlign:
             title.setAlignment(Qt.AlignCenter)
         frame = QFrame()
@@ -239,18 +294,11 @@ class GeneralSystemDataTab(QWidget):
             self.productSelection.setCurrentText("")
             self.productLoadLineEdit.setDisabled(True)
             self.productLoadLineEdit.setText("")
-            # Set the background color to grey
-            self.productSelection.setStyleSheet("background-color: #f5f5f5;")
-            self.productLoadLineEdit.setStyleSheet("background-color: #f5f5f5;")
-
         else:
             # If "Yes" is selected, make the other fields editable
             self.productSelection.setDisabled(False)
             # self.productSelection.removeItem([""])
             self.productLoadLineEdit.setDisabled(False)
-            # set the background color to white
-            self.productSelection.setStyleSheet("background-color: #ffffff;")
-            self.productLoadLineEdit.setStyleSheet("background-color: #ffffff;")
             # update the selection list
             self._updateProductSelectionComboBox()
 
@@ -268,13 +316,6 @@ class GeneralSystemDataTab(QWidget):
             self.lifetimeLineEdit.setText("")
             self.TINLineEdit.setText("")
             self.TOUTLineEdit.setText("")
-            # set the background color to grey
-            self.COPLineEdit.setStyleSheet("background-color: #f5f5f5;")
-            self.costLineEdit.setStyleSheet("background-color: #f5f5f5;")
-            self.lifetimeLineEdit.setStyleSheet("background-color: #f5f5f5;")
-            self.TINLineEdit.setStyleSheet("background-color: #f5f5f5;")
-            self.TOUTLineEdit.setStyleSheet("background-color: #f5f5f5;")
-
         else:
             # If "Yes" is selected, make the other fields editable
             self.COPLineEdit.setDisabled(False)
@@ -282,12 +323,6 @@ class GeneralSystemDataTab(QWidget):
             self.lifetimeLineEdit.setDisabled(False)
             self.TINLineEdit.setDisabled(False)
             self.TOUTLineEdit.setDisabled(False)
-            # set the background color to white
-            self.COPLineEdit.setStyleSheet("background-color: #ffffff;")
-            self.costLineEdit.setStyleSheet("background-color: #ffffff;")
-            self.lifetimeLineEdit.setStyleSheet("background-color: #ffffff;")
-            self.TINLineEdit.setStyleSheet("background-color: #ffffff;")
-            self.TOUTLineEdit.setStyleSheet("background-color: #ffffff;")
 
 
     @pyqtSlot()

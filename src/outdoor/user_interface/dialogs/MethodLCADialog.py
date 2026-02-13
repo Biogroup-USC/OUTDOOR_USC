@@ -72,14 +72,17 @@ class MethodologyLcaDialog(QDialog):
         self.comboMethodology = QComboBox()
         # Visible labels (what the user sees)
         self.default_method_labels = ["ReCiPe 2016 v1.03 midpoint + endpoint (H)",
-                                      "ReCiPe 2016 v1.1 midpoint + endpoint (H)",
                                       "ReCiPe 2016 v1.03 [bio=1] (custom: biogenic = fossil)",
                                       "IPCC 2013", ]
+
         self.comboMethodology.addItems(self.default_method_labels)
         layout.addWidget(self.comboMethodology)
 
         # ---- Wire project selection -> methodology list ----
         self.comboProjects.currentIndexChanged.connect(self._bd_project_changed)
+
+        # Populate with existing data if available
+        self._populate_existing_data()
 
         # buttons
         btn_row = QHBoxLayout()
@@ -100,19 +103,29 @@ class MethodologyLcaDialog(QDialog):
         self.technosphereDatabase = self.comboDatabasesTechno.currentText()
         self.biosphereDatabase = self.comboDatabasesBio.currentText()
         self.selection = self.comboMethodology.currentText()
-        # add all the data to the central data-manager
-        self.centralDataManager.bdProjectName = self.comboProjects.currentText()
-        self.centralDataManager.technosphereDatabaseLCA = self.technosphereDatabase
-        self.centralDataManager.biosphereDatabaseLCA = self.biosphereDatabase
-        self.centralDataManager.methodSelectionLCA = self.selection
 
-        if oldDataBaseEIDB != self.centralDataManager.technosphereDatabaseLCA:
-            # todo 1 create a warning that all the LCA data from the central datamanager will be wipeout!
-            # todo 2 give the option to opt out!
-            # todo 3 make sure when opening LCA dialog that a database exists to read from, otherwise show a error
-            #  widget explaining you need to set up your databases you want to search in
-            # todo 4, now link it all up
-            pass
+        if (oldDataBaseEIDB != self.technosphereDatabase
+            or oldDataBaseBioDB != self.biosphereDatabase):
+
+            message = ("Are you sure you want to proceed? \n"
+                       "Changing the database means all your saved LCA Data gets "
+                       "lost and will need to be defined again!")
+
+            if self._showDialogDatabaseChange(message, type="Warning", title="Warning, LCA data will be deleted"):
+
+                # if the user accepts the change,
+                # add all the data to the central data-manager
+                self.centralDataManager.bwProjectName = self.comboProjects.currentText()
+                self.centralDataManager.technosphereDatabaseLCA = self.technosphereDatabase
+                self.centralDataManager.biosphereDatabaseLCA = self.biosphereDatabase
+                self.centralDataManager.methodSelectionLCA = self.selection
+                # need to reset all the LCA data in the central data manager
+                self.centralDataManager.resetLCAData()
+
+            else:
+                # close the window without saving the changes
+                self.reject()
+                return
 
         # accept and close the window
         self.accept()
@@ -188,7 +201,7 @@ class MethodologyLcaDialog(QDialog):
         Show an error dialog with the message provided.
         :param message: Message to show in the dialog
         """
-        baseErrorMessage = "Error creating the superstructure object: \n"
+        baseErrorMessage = "Error occurred: \n"
 
         errorDialog = QMessageBox()
         if type == 'Critical':
@@ -201,3 +214,51 @@ class MethodologyLcaDialog(QDialog):
         errorDialog.setWindowTitle(title)
         errorDialog.setText(baseErrorMessage + message)
         errorDialog.exec_()
+
+    def _populate_existing_data(self):
+        """Populate dialog widgets with existing data from centralDataManager."""
+        # Set project if available
+        if self.centralDataManager.bwProjectName:
+            index = self.comboProjects.findText(self.centralDataManager.bwProjectName)
+            if index >= 0:
+                self.comboProjects.setCurrentIndex(index)
+
+        # Set technosphere database if available
+        if self.centralDataManager.technosphereDatabaseLCA:
+            index = self.comboDatabasesTechno.findText(self.centralDataManager.technosphereDatabaseLCA)
+            if index >= 0:
+                self.comboDatabasesTechno.setCurrentIndex(index)
+
+        # Set biosphere database if available
+        if self.centralDataManager.biosphereDatabaseLCA:
+            index = self.comboDatabasesBio.findText(self.centralDataManager.biosphereDatabaseLCA)
+            if index >= 0:
+                self.comboDatabasesBio.setCurrentIndex(index)
+
+        # Set methodology if available
+        if self.centralDataManager.methodSelectionLCA:
+            index = self.comboMethodology.findText(self.centralDataManager.methodSelectionLCA)
+            if index >= 0:
+                self.comboMethodology.setCurrentIndex(index)
+
+    def _showDialogDatabaseChange(self, message, type='Warning', title='Change in Database'):
+        """
+        Show an error dialog with the message provided.
+        :param message: Message to show in the dialog
+        """
+        baseErrorMessage = "LCA database change: \n"
+
+        errorDialog = QMessageBox(self)
+        if type == 'Critical':
+            errorDialog.setIcon(QMessageBox.Critical)
+        elif type == 'Warning':
+            errorDialog.setIcon(QMessageBox.Warning)
+        else:
+            errorDialog.setIcon(QMessageBox.Information)
+
+        errorDialog.setWindowTitle(title)
+        errorDialog.setText(baseErrorMessage + message)
+        errorDialog.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        errorDialog.setDefaultButton(QMessageBox.Cancel)
+        result = errorDialog.exec_()
+        return result == QMessageBox.Ok

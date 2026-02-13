@@ -10,7 +10,8 @@ import bw2data as bw
 import pandas as pd
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel, QTableWidget, QTableWidgetItem, \
+    QMessageBox
 
 from outdoor.user_interface.data.OutdoorDTO import OutdoorDTO
 from outdoor.user_interface.utils.OutdoorLogger import outdoorLogger
@@ -24,7 +25,7 @@ class LCADialog(QDialog):
     components and their composition in the feedstock.
     """
 
-    def __init__(self, initialData: OutdoorDTO):
+    def __init__(self, initialData: OutdoorDTO, centralDataManager):
         super().__init__()
         self.logger = logging.getLogger(__name__)
         self.logger.debug(f"Initializing LCADialog for {initialData.name} with UID {initialData.uid}")
@@ -67,6 +68,17 @@ class LCADialog(QDialog):
         self.setWindowTitle("LCA Lookup")
         self.setGeometry(100, 100, 600, 900)  # Adjust size as needed
         self.lca_checksum = ""
+        self.centralDataManager = centralDataManager
+
+        if not self.centralDataManager.technosphereDatabaseLCA or not self.centralDataManager.biosphereDatabaseLCA:
+            self.logger.error(
+                "Brightway database names are not set. Please Set up the methodology or Install the databases.")
+            QMessageBox.warning(self, "Configuration Error",
+                                "Brightway database names are not set.\n\nPlease set up the methodology or install the databases.")
+
+            self.reject()
+            self.close()
+            return
 
         bwProjectNames = []
         for project in bw.projects:
@@ -76,55 +88,64 @@ class LCADialog(QDialog):
         if not bwProjectNames:
             self.logger.error("No Brightway projects found. Please Install the databases.")
             # close the dialog
-            self.close()
+            self._close()
 
-        if "outdoor" in bwProjectNames:
-            bw.projects.set_current("outdoor")
+        # get the databases from brightway, should always be able to find the databases in the project specified in the
+        # LCA SET UP, but if not, try to find them in other projects. If not found, log an error and close the dialog.
+        try:
+            bw.projects.set_current(self.centralDataManager.bwProjectName)
             self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
             self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
-            # check the size of the databases
-            if len(self.eidb) < 1 and len(self.bios) < 1:
-                self.logger.warning("Project 'outdoor' has empty databases.")
-                self.logger.info("Attempting to register the with an other database.")
+            self.outd = bw.Database('outdoor')
 
-                bwProjectNames.remove('outdoor')
-                for projectName in bwProjectNames:
-                    try:
-                        bw.projects.set_current(projectName)
-                        self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
-                        self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
-                        if len(self.eidb) > 0 and len(self.bios) > 0:
-                            self.logger.info(f"Found valid Ecoinvent databases in project '{projectName}'.")
-                            break
+        except:
+                self.logger.error("Could not setup the brightway project specified in the methodology. Attempting to find a valid project with Ecoinvent databases.")
+                self.logger.info("Make sure the Installation has been done correctly!!.")
 
-                    except Exception as e:
-                        self.logger.error(f"Could not setup a brightway project {projectName}: {e}")
-                        self.logger.info("Make sure the Installation has been done correctly!!.")
-
-        else:
-            self.logger.warning("No Brightway project called 'outdoor' found. "
-                                "Attempting to load databases from other projects in BrightWay.")
-
-            for projectName in bwProjectNames:
-                try:
-                    bw.projects.set_current(projectName)
+                if "outdoor" in bwProjectNames:
+                    bw.projects.set_current("outdoor")
                     self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
                     self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
+                    # check the size of the databases
+                    if len(self.eidb) < 1 and len(self.bios) < 1:
+                        self.logger.warning("Project 'outdoor' has empty databases.")
+                        self.logger.info("Attempting to register the with an other database.")
 
-                    if len(self.eidb) > 0 and len(self.bios) > 0:
-                        self.logger.info(f"Found valid Ecoinvent database in project {projectName}.")
-                        break
+                        bwProjectNames.remove('outdoor')
+                        for projectName in bwProjectNames:
+                            try:
+                                bw.projects.set_current(projectName)
+                                self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
+                                self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
+                                if len(self.eidb) > 0 and len(self.bios) > 0:
+                                    self.logger.info(f"Found valid Ecoinvent databases in project '{projectName}'.")
+                                    break
 
-                except Exception as e:
-                    self.logger.error(f"Could not setup a brightway project {projectName}: {e}")
-                    self.logger.info("Make sure the Installation has been done correctly!!.")
+                            except Exception as e:
+                                self.logger.error(f"Could not setup a brightway project {projectName}: {e}")
+                                self.logger.info("Make sure the Installation has been done correctly!!.")
 
-        self.outd = bw.Database('outdoor')
+                else:
+                    self.logger.warning("No Brightway project called 'outdoor' found. "
+                                        "Attempting to load databases from other projects in BrightWay.")
 
-        # previous version with no checks.
-        # self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
-        # self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
-        # self.outd = bw.Database('outdoor')
+                    for projectName in bwProjectNames:
+                        try:
+                            bw.projects.set_current(projectName)
+                            self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
+                            self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
+
+                            if len(self.eidb) > 0 and len(self.bios) > 0:
+                                self.logger.info(f"Found valid Ecoinvent database in project {projectName}.")
+                                break
+
+                        except Exception as e:
+                            self.logger.error(f"Could not setup a brightway project {projectName}: {e}")
+                            self.logger.info("Make sure the Installation has been done correctly!!.")
+
+
+                self.outd = bw.Database('outdoor')
+
 
         try:
             self.outd.register()
@@ -389,7 +410,7 @@ class LCADialog(QDialog):
                 self.logger.warning("Didn't find the uuid in bw:", self.dto.uid)
             self.dto.calculated = False
 
-    def close(self):
+    def _close(self):
         #TODO add a popup that says "woah honey you got a mismatch between this and brightway"
         #or like... automagically write to brightway on close? I dunno.
         test_sum = hashlib.sha256(json.dumps(self.dto.LCA['exchanges'], sort_keys=True).encode()).hexdigest()

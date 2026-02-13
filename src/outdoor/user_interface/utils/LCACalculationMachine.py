@@ -18,7 +18,7 @@ import pandas as pd
 
 from outdoor.user_interface.data.CentralDataManager import CentralDataManager
 from outdoor.user_interface.data.OutdoorDTO import OutdoorDTO
-from outdoor.user_interface.dialogs.LcaButton import LcaButton
+from outdoor.user_interface.dialogs.LcaButton import refresh_all_lca_buttons
 
 
 class LCACalculationMachine:
@@ -48,7 +48,7 @@ class LCACalculationMachine:
             # close the calculation machine
             return
 
-        projectName = self.centralDataManager.bdProjectName
+        projectName = self.centralDataManager.bwProjectName
         bw.projects.set_current(projectName)
         self.eidb = bw.Database(self.centralDataManager.technosphereDatabaseLCA)
         self.bios = bw.Database(self.centralDataManager.biosphereDatabaseLCA)
@@ -283,11 +283,16 @@ class LCACalculationMachine:
         Selects the correct methods (mid and or end-points) according to the LCA methodology selected by the user.
         returns: list of methods
         """
-        if self.methodSelectionLCA == "ReCiPe 2016 v1.03 midpoint + endpoint (H)":
-            return self._recipe_base_methods()
+        # check which ecoinvent database we're working in from the technosphere
+        nameEIDB = self.centralDataManager.technosphereDatabaseLCA
 
-        elif self.methodSelectionLCA == "ReCiPe 2016 v1.1 midpoint + endpoint (H)":
-            return self._recipe_V_1_1_methods()
+        if (self.methodSelectionLCA == "ReCiPe 2016 v1.03 midpoint + endpoint (H)"
+            and "ecoinvent-3.9.1" in nameEIDB.lower()):
+            return self._recipe_ecoinvent_3_9_methods()
+
+        elif (self.methodSelectionLCA == "ReCiPe 2016 v1.03 midpoint + endpoint (H)"
+              and "ecoinvent-3.11" in nameEIDB.lower()):
+            return self._recipe_ecoinvent_3_11_methods()
 
         elif self.methodSelectionLCA == "IPCC 2013":
             return self._IPCC_methods()
@@ -313,28 +318,9 @@ class LCACalculationMachine:
         """
         Find and update all LcaButton instances across the entire application.
         """
-        # Get all top-level windows instead of just the active one
-        all_windows = QApplication.topLevelWidgets()
-
-        if not all_windows:
-            self.logger.warning("No top-level widgets found in the application")
-            return 0
-
-        lca_buttons = []
-
-        # Search through all top-level windows
-        for window in all_windows:
-            # Find all LcaButton instances in this window
-            buttons = window.findChildren(LcaButton)
-            if buttons:
-                lca_buttons.extend(buttons)
-
-        # Update each button
-        updated_count = 0
-        for button in lca_buttons:
-            button.changeColorBnt()
-            updated_count += 1
-
+        updated_count = refresh_all_lca_buttons()
+        if updated_count == 0:
+            self.logger.warning("No LCA buttons found in the application")
         return updated_count
 
     def _recipe_base_methods(self):
@@ -345,13 +331,34 @@ class LCACalculationMachine:
                      if "ReCiPe 2016 v1.03, endpoint (H)" in str(m) and "no LT" not in str(m) and "total" in str(m)]
         return midpoint + endpoints
 
-    def _recipe_V_1_1_methods(self):
+    def _recipe_ecoinvent_3_9_methods(self):
+        """Default ReCiPe selections."""
+        midpoint = [m for m in bw.methods
+                    if "ReCiPe 2016 v1.03, midpoint (H)" in str(m)
+                    and "ecoinvent-3.9.1" in str(m)
+                    and "no LT" not in str(m)]
+
+        endpoints = [m for m in bw.methods
+                     if "ecoinvent-3.9.1" in str(m)
+                     and "ReCiPe 2016 v1.03, endpoint (H)" in str(m)
+                     and "no LT" not in str(m) and "total" in str(m)]
+
+        return midpoint + endpoints
+
+    def _recipe_ecoinvent_3_11_methods(self):
         """ ReCiPe selections Version 1.1"""
         midpoint = [m for m in bw.methods
-                    if "ReCiPe 2016 v1.1, midpoint (H)" in str(m) and "no LT" not in str(m)]
+                    if "ReCiPe 2016 v1.03, midpoint (H)" in str(m)
+                    and "ecoinvent-3.11" in str(m)
+                    and "no LT" not in str(m)]
+
         endpoints = [m for m in bw.methods
-                     if "ReCiPe 2016 v1.1, endpoint (H)" in str(m) and "no LT" not in str(m) and "total" in str(m)]
+                     if "ecoinvent-3.11" in str(m)
+                     and "ReCiPe 2016 v1.03, endpoint (H)" in str(m)
+                     and "no LT" not in str(m) and "total" in str(m)]
+
         return midpoint + endpoints
+
 
     def _IPCC_methods(self):
         """Original IPCC selections."""
@@ -558,6 +565,5 @@ class LCACalculationMachine:
             custom_methods.append(new_key)
 
         return custom_methods
-
 
 

@@ -1447,7 +1447,7 @@ class MovableIcon(QGraphicsObject):
                                       iconID=self.iconID)
 
         elif self.icon_type == ProcessType.LCA:
-            dialog = LCADialog(initialData=existingData)
+            dialog = LCADialog(initialData=existingData, centralDataManager=self.centralDataManager)
 
         else:
             self.logger.error("Icon type {} not recognized".format(self.icon_type))  # You can handle this error in a more user-friendly way

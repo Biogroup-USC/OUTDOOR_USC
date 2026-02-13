@@ -135,6 +135,35 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
             self.logger.error('Loading in file "{}" failed'.format(self.ProjectPath))
             self.logger.error(e)
 
+    def openFileFromScript(self,filepath):
+        #try:
+
+            self.ProjectPath = filepath
+            self.ProjectName = self.ProjectPath.split('/')[-1].split('.')[0]
+
+            # sometimes submodules are not imported, use this to force the import of the data module
+            # replicate if you get similar errors such as: "no module 'data' found"
+            if 'data' not in sys.modules:
+                import outdoor.user_interface.data
+                sys.modules['data'] = sys.modules['outdoor.user_interface.data']
+
+            with open(self.ProjectPath, 'rb') as file:
+                self.centralDataManager = pickle.load(file)
+            self.centralDataManager.metadata["PROJECT_NAME"] = self.ProjectName
+            self.centralDataManager.loadConfigs()
+            self.signalManager = SignalManager(self.centralDataManager)  # Initialize the new output manager
+            # check if there are missing attributes in the centralDataManager
+            self.checkMissingAttributes()
+
+            self.initTabs()
+            self.enableSave()
+            self.logger.debug("Opened File: {}".format(self.ProjectPath))
+
+
+        #except Exception as e:
+        #    self.logger.error('Loading in file "{}" failed'.format(self.ProjectPath))
+        #    self.logger.error(e)
+
 
     def checkMissingAttributes(self):
         """
@@ -142,6 +171,15 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         and adds them with default values if they are missing
         :return:
         """
+        # check if the attributes for the LCA databases exist, if not initialize them with default values
+        if not hasattr(self.centralDataManager, 'technosphereDatabaseLCA'):
+            self.centralDataManager.technosphereDatabaseLCA = ""
+        if not hasattr(self.centralDataManager, 'biosphereDatabaseLCA'):
+            self.centralDataManager.biosphereDatabaseLCA = ""
+        if not hasattr(self.centralDataManager, 'methodSelectionLCA'):
+            self.centralDataManager.methodSelectionLCA = ""
+        if not hasattr(self.centralDataManager, 'bwProjectName'):
+            self.centralDataManager.bwProjectName = ""
 
         # check if sensitivity data exists
         if not hasattr(self.centralDataManager, 'sensitivityData'):
@@ -423,11 +461,18 @@ def checkFocus():
     return currentFocusWidget
 
 
-def run_outdoor_interface(**kwargs):
-    app = QApplication(sys.argv)
-    main_window = MainWindow(**kwargs)
-    main_window.show()
-    sys.exit(app.exec_())
+def run_outdoor_interface(openFile=None, **kwargs):
+    if openFile:
+        app = QApplication(sys.argv)
+        main_window = MainWindow(**kwargs)
+        main_window.openFileFromScript(openFile)
+        main_window.show()
+        sys.exit(app.exec_())
+    else:
+        app = QApplication(sys.argv)
+        main_window = MainWindow(**kwargs)
+        main_window.show()
+        sys.exit(app.exec_())
 
 
 if __name__ == "__main__":

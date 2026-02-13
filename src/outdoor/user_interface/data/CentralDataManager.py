@@ -51,7 +51,7 @@ class CentralDataManager:
         self.BWPROJECTNAME = "superstructure"  # this needs to be changed in the configs or something because it's actual satan.
         self.methodSelectionLCA: str = ""
         # ecoinvent vars
-        self.bdProjectName: str = ""
+        self.bwProjectName: str = ""
         self.technosphereDatabaseLCA: str = ""
         self.biosphereDatabaseLCA: str = ""
         self.methodSelectionLCA: str = ""
@@ -268,4 +268,26 @@ class CentralDataManager:
         for dto in self.reactionData:
             namesList.append(dto.name)
         return namesList
+
+    def resetLCAData(self):
+        """
+        Go over all de DTO lists and delete the data that is related to LCA calculations
+        """
+        # gather all the relevant dto's in a list
+        dtoList = self.componentData + self.utilityData + self.wasteData
+
+        for dto in dtoList:
+            for key in dto.LCA:
+                dto.LCA[key] = {}
+            dto.calculated = False
+
+        # update the apperance of the interface to reflect the fact that the LCA data has been reset
+        try:
+            from outdoor.user_interface.dialogs.LcaButton import refresh_all_lca_buttons
+            updated = refresh_all_lca_buttons()
+            self.logger.debug("Refreshed %s LCA buttons after reset", updated)
+        except Exception as e:
+            self.logger.debug("Unable to refresh LCA buttons after reset: %s", e)
+
+
 

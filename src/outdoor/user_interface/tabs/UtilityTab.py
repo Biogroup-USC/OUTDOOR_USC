@@ -162,13 +162,13 @@ class UtilityTab(QWidget):
                 index = self.columnShortnames.index(key)
                 if key == "LCA":
                     if len(value['exchanges']) > 0 and data.calculated:
-                        btn = LcaButton(self.utilitiesTable, data)
+                        btn = LcaButton(self.utilitiesTable, data, centralDataManager=self.centralDataManager)
                         btn.setText("Defined")
                         btn.clicked.connect(btn.lcaAction)
                         btn.changeColorBnt()
                         self.utilitiesTable.setCellWidget(rowPosition, index, btn)
                     else:
-                        btn = LcaButton(self.utilitiesTable, data)
+                        btn = LcaButton(self.utilitiesTable, data, centralDataManager=self.centralDataManager)
                         btn.setText("Not Defined")
                         btn.clicked.connect(btn.lcaAction)
                         btn.changeColorBnt()
@@ -229,14 +229,14 @@ class UtilityTab(QWidget):
                 index = self.wshortNames.index(key)
                 if key == "LCA":
                     if len(value['exchanges']) > 0 and data.calculated:
-                        btn = LcaButton(self.wasteTable, data)
+                        btn = LcaButton(self.wasteTable, data, centralDataManager=self.centralDataManager)
                         btn.setText("Defined")
                         btn.clicked.connect(btn.lcaAction)
                         btn.changeColorBnt()
                         # give the button a green
                         self.wasteTable.setCellWidget(rowPosition, index, btn)
                     else:
-                        btn = LcaButton(self.wasteTable, data)
+                        btn = LcaButton(self.wasteTable, data, centralDataManager=self.centralDataManager)
                         btn.setText("Not Defined")
                         btn.clicked.connect(btn.lcaAction)
                         btn.changeColorBnt()
