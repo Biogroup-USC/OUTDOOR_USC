@@ -42,6 +42,6 @@ class OutdoorDTO(object):
 
     def getLCAImpacts(self) -> dict:
         if self.calculated:
-            return {self.uid: self.LCA['Results']}
+            return  self.LCA['Results']
         else:
-            return {self.uid: self.emptyCategories}
+            return {}

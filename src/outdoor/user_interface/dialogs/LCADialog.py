@@ -3,8 +3,7 @@ import hashlib
 import json
 import logging
 import sys
-from types import TracebackType
-
+# from types import TracebackType
 import bw2calc as bc
 import bw2data as bw
 import pandas as pd
@@ -14,7 +13,6 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel
     QMessageBox
 
 from outdoor.user_interface.data.OutdoorDTO import OutdoorDTO
-from outdoor.user_interface.utils.OutdoorLogger import outdoorLogger
 
 
 class LCADialog(QDialog):

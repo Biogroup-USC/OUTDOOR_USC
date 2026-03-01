@@ -16,8 +16,6 @@ import bw2data
 import bw2data as bw
 import pandas as pd
 
-from outdoor.user_interface.data.CentralDataManager import CentralDataManager
-from outdoor.user_interface.data.OutdoorDTO import OutdoorDTO
 from outdoor.user_interface.dialogs.LcaButton import refresh_all_lca_buttons
 
 
@@ -313,6 +311,13 @@ class LCACalculationMachine:
         for meth in methods:
             results[meth[2]] = (meth[3].split("(")[1].split(")")[0] if "midpoint" in str(meth) else meth[3], bw.Method(meth).metadata.get("unit"))
         return results
+
+    def getImpactCatNames(self):
+        methods = self.getImpactMethods()
+        catNames = []
+        for meth in methods:
+            catNames.append(meth[3])
+        return catNames
 
     def _updateAll_LCAButtons(self):
         """

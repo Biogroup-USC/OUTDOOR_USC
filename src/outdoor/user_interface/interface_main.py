@@ -173,13 +173,13 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         """
         # check if the attributes for the LCA databases exist, if not initialize them with default values
         if not hasattr(self.centralDataManager, 'technosphereDatabaseLCA'):
-            self.centralDataManager.technosphereDatabaseLCA = ""
+            self.centralDataManager.technosphereDatabaseLCA = "ecoinvent-3.9.1-consequential"
         if not hasattr(self.centralDataManager, 'biosphereDatabaseLCA'):
-            self.centralDataManager.biosphereDatabaseLCA = ""
+            self.centralDataManager.biosphereDatabaseLCA = "ecoinvent-3.9.1-biosphere"
         if not hasattr(self.centralDataManager, 'methodSelectionLCA'):
-            self.centralDataManager.methodSelectionLCA = ""
+            self.centralDataManager.methodSelectionLCA = "ReCiPe 2016 v1.03 midpoint + endpoint (H)"
         if not hasattr(self.centralDataManager, 'bwProjectName'):
-            self.centralDataManager.bwProjectName = ""
+            self.centralDataManager.bwProjectName = "outdoor"
 
         # check if sensitivity data exists
         if not hasattr(self.centralDataManager, 'sensitivityData'):
@@ -411,10 +411,13 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
                     for exchange, dict in component.LCA['exchanges'].items():
                         reference = dict.get('Reference')
                         region = dict.get('Region')
-                        componentReferences.update({'Reference': reference, 'Region': region})
+                        demand = dict.get('Demand') + ' ' + dict.get('Unit')
+                        componentReferences.update({'Reference': reference,
+                                                    'Region': region,
+                                                    'Demand': demand})
 
                 except Exception as e:
-                    self.logger.error("The following error ocuured: ", e)
+                    self.logger.error("The following error occurred: ", e)
 
                 inventory.update({componentName: componentReferences})
 

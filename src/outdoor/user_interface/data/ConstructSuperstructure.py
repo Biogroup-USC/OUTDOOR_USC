@@ -14,6 +14,7 @@ from outdoor.outdoor_core.input_classes.unit_operations.library.CHP import Combi
 from outdoor.outdoor_core.input_classes.unit_operations.superclasses.physical_process import PhysicalProcess
 from outdoor.user_interface.data.ProcessDTO import ProcessType
 import pandas as pd
+from outdoor.user_interface.utils.LCACalculationMachine import LCACalculationMachine
 
 
 class ConstructSuperstructure:
@@ -50,6 +51,8 @@ class ConstructSuperstructure:
                                      "Electricity production (generators)": 'PEL_PROD',
                                      "Heat production (generators)": 'PHEAT', }
 
+        # get the list of LCA methodes
+        self.LCAimpactCatagoryNames = LCACalculationMachine(self.centralDataManager).getImpactCatNames()
 
         # fist check if there are no incomplete units, if so, raise an error
         unitDTODictionary = self.centralDataManager.unitProcessData
@@ -127,7 +130,8 @@ class ConstructSuperstructure:
                              loadType=productDriven,
                              loadName=mainProduct,
                              load=productLoad,
-                             OptimizationMode=optimizationMode)
+                             OptimizationMode=optimizationMode,
+                             LCAimpactCategoryNames=self.LCAimpactCatagoryNames)
 
         opH = float(self.centralDataManager.generalData['operatingHours'])
         obj.set_operatingHours(opH)
@@ -238,9 +242,7 @@ class ConstructSuperstructure:
         obj.set_deltaUt(utilityPrices)
 
         # get impact factors from the LCA data
-        impactCategoriesDict = self.centralDataManager.utilityData[0].getLCAImpacts()
-        impactCategories = list(list(impactCategoriesDict.values())[0].keys())
-        obj._set_impact_categories(impactCategories)
+        obj._set_impact_categories(self.LCAimpactCatagoryNames)
 
         # set the waste management types
         wasteManagementTypes = self.centralDataManager.wasteManagementTypes
@@ -254,18 +256,25 @@ class ConstructSuperstructure:
         wasteCostFactorDict = {dto.name: float(dto.cost) for dto in self.centralDataManager.wasteData}
         obj._set_waste_cost(wasteCostFactorDict)
 
-        # set the waste impact factors
-        obj._set_waste_management_impact_factors(self.centralDataManager.wasteData)
+        # set the waste impact factors, inflow components and utility impact factors
+        # "waste_impact_fac", "impact_inFlow_components", "util_impact_factors"
+        obj._set_impact_factors_superstructure(impactType="waste_impact_fac", DTOlist=self.centralDataManager.wasteData,
+                                               impactCategories=self.LCAimpactCatagoryNames)
+        obj._set_impact_factors_superstructure(impactType="impact_inFlow_components", DTOlist=self.centralDataManager.componentData,
+                                               impactCategories=self.LCAimpactCatagoryNames)
+        obj._set_impact_factors_superstructure(impactType="util_impact_factors", DTOlist=self.centralDataManager.utilityData,
+                                               impactCategories=self.LCAimpactCatagoryNames)
 
+        #obj._set_waste_management_impact_factors(self.centralDataManager.wasteData)
         # set the impact inflow components
-        obj._set_component_impact_factors(self.centralDataManager.componentData)
+        #obj._set_component_impact_factors(self.centralDataManager.componentData)
 
         # for debugging purposes
         # a = obj.ImpactInflowComponents['impact_inFlow_components']
         # print(a)
 
         # set the impact of utility factors
-        obj._set_utility_impact_factors(self.centralDataManager.utilityData)
+        #obj._set_utility_impact_factors(self.centralDataManager.utilityData)
 
         return obj, errorFlag
 

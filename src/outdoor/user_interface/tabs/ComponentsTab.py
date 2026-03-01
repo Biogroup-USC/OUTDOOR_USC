@@ -78,13 +78,14 @@ class ComponentsTab(QWidget):
 
         # Table for the component data
         self.componentsTable = QTableWidget()
-        self.componentsTable.setColumnCount(5)
+        self.componentsTable.setColumnCount(6)
         self.columnsList = [
             "Component", "Lower heating Value (kWh/kg)",
             "Heat capacity (kJ/kg/K)", "Molecular weight (g/mol)",
-            "LCA Data"
+            "LCA inputs", "LCA emissions"
         ]
         self.columnsShortnames = ["name", "lowerHeat", "heatCapacity", "molecularWeight", "LCA"]
+        self.lcaEmissionsColumn = self.columnsList.index("LCA emissions")
         self.componentsTable.setHorizontalHeaderLabels(self.columnsList)
 
         # adjust the width of the columns
@@ -93,6 +94,7 @@ class ComponentsTab(QWidget):
         self.componentsTable.setColumnWidth(2, 180)
         self.componentsTable.setColumnWidth(3, 210)
         self.componentsTable.setColumnWidth(4, 150)
+        self.componentsTable.setColumnWidth(5, 150)
         self.componentsTable.itemDoubleClicked.connect(self.doubleClickEvent)
 
         # Set validators for the numeric columns using a custom delegate class
@@ -146,27 +148,26 @@ class ComponentsTab(QWidget):
             if key in self.columnsShortnames:
                 index = self.columnsShortnames.index(key)
                 if key == "LCA":
-                    if len(value['exchanges']) > 0 and data.calculated: # if there are results, the LCA is defined
-                        btn = LcaButton(self.componentsTable, data, centralDataManager=self.centralDataManager)
-                        btn.setText("Defined")
-                        btn.clicked.connect(btn.lcaAction)
-                        # give the button a green button color in the style of the sheet
-                        btn.changeColorBnt()
-                        self.componentsTable.setCellWidget(rowPosition, index, btn)
-                    else:
-                        btn = LcaButton(self.componentsTable, data, centralDataManager=self.centralDataManager)
-                        btn.setText("Not Defined")
-                        btn.clicked.connect(btn.lcaAction)
-                        # give the button a yellow button color in the style of the sheet
-                        btn.changeColorBnt()
-                        self.componentsTable.setCellWidget(rowPosition, index, btn)
+                    btn = self._createLcaLikeButton(data=data, connectAction=True)
+                    self.componentsTable.setCellWidget(rowPosition, index, btn)
                 else:
                     insert = QTableWidgetItem(value)
                     insert.setFlags(insert.flags() | Qt.ItemIsEditable)
                     self.componentsTable.setItem(rowPosition, index, insert)
 
+        # UI only for now: same button style as LCA Data, but no click action yet.
+        emissionsBtn = self._createLcaLikeButton(data=data, connectAction=False)
+        self.componentsTable.setCellWidget(rowPosition, self.lcaEmissionsColumn, emissionsBtn)
+
         # set the flag of adding a row to false
         self.addingRowFlag = False
+
+    def _createLcaLikeButton(self, data: ComponentDTO, connectAction: bool = True):
+        btn = LcaButton(self.componentsTable, data, centralDataManager=self.centralDataManager)
+        btn.changeColorBnt()
+        if connectAction:
+            btn.clicked.connect(btn.lcaAction)
+        return btn
 
 
     def doubleClickEvent(self, item):
@@ -351,4 +352,3 @@ class ComponentsTab(QWidget):
             # update the dto list containing the chemical components
             self.centralDataManager.updateData('componentData', row)
             # open a dialog if the component is used in a reaction or unit operation
-

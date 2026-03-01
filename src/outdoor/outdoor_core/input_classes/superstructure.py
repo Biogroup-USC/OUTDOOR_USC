@@ -43,6 +43,27 @@ class Superstructure:
                  load=None, # the load in tons/y
                  loadType= None, # specify if it's Product or Substrate you're loading in
                  OptimizationMode=None,
+                 LCAimpactCategoryNames= ['terrestrial acidification potential (TAP)',
+                              'global warming potential (GWP100)',
+                              'freshwater ecotoxicity potential (FETP)',
+                              'marine ecotoxicity potential (METP)',
+                              'terrestrial ecotoxicity potential (TETP)',
+                              'fossil fuel potential (FFP)',
+                              'freshwater eutrophication potential (FEP)',
+                              'marine eutrophication potential (MEP)',
+                              'human toxicity potential (HTPc)',
+                              'human toxicity potential (HTPnc)',
+                              'ionising radiation potential (IRP)',
+                              'agricultural land occupation (LOP)',
+                              'surplus ore potential (SOP)',
+                              'ozone depletion potential (ODPinfinite)',
+                              'particulate matter formation potential (PMFP)',
+                              'photochemical oxidant formation potential: humans (HOFP)',
+                              'photochemical oxidant formation potential: ecosystems (EOFP)',
+                              'water consumption potential (WCP)',
+                              'ecosystem quality',
+                              'human health',
+                              'natural resources'],
                  *args,
                  **kwargs):
 
@@ -68,29 +89,7 @@ class Superstructure:
         # CONSTANT SETS
         # -------------
 
-        self.OBJECTIVE_SET = {'EBIT', 'NPE', 'NPC', 'FWD',
-                              'GWP',
-                              'terrestrial acidification potential (TAP)',
-                              'global warming potential (GWP100)',
-                              'freshwater ecotoxicity potential (FETP)',
-                              'marine ecotoxicity potential (METP)',
-                              'terrestrial ecotoxicity potential (TETP)',
-                              'fossil fuel potential (FFP)',
-                              'freshwater eutrophication potential (FEP)',
-                              'marine eutrophication potential (MEP)',
-                              'human toxicity potential (HTPc)',
-                              'human toxicity potential (HTPnc)',
-                              'ionising radiation potential (IRP)',
-                              'agricultural land occupation (LOP)',
-                              'surplus ore potential (SOP)',
-                              'ozone depletion potential (ODPinfinite)',
-                              'particulate matter formation potential (PMFP)',
-                              'photochemical oxidant formation potential: humans (HOFP)',
-                              'photochemical oxidant formation potential: ecosystems (EOFP)',
-                              'water consumption potential (WCP)',
-                              'ecosystem quality',
-                              'human health',
-                              'natural resources' }
+        self.OBJECTIVE_SET = {'EBIT', 'NPE', 'NPC', 'FWD', 'GWP'} | set(LCAimpactCategoryNames)
 
         self.OPTIMIZATION_MODE_SET = {'single',
                                       'multi-objective',
@@ -975,7 +974,46 @@ class Superstructure:
         for key, value in waste_cost.items():
             self.WasteCost['waste_cost_factor'][key] = value
 
-    def _set_waste_management_impact_factors(self, wasteDTOs: list):
+    def _set_impact_factors_superstructure(self, impactType: str, DTOlist: list, impactCategories: list):
+        """
+        Set impact factors for waste, components, or utilities.
+
+        Parameters:
+        -----------
+        impactType : str
+            Type of impact: "waste_impact_fac", "impact_inFlow_components", or "util_impact_factors"
+        DTOlist : list
+            List of DTO objects containing impact data
+        impactCategories : list
+            List of impact category names
+        """
+        # Map impact types to their corresponding dictionary attributes
+        impact_type_mapping = {
+            "waste_impact_fac": self.WasteDisposalImpactFactors,
+            "impact_inFlow_components": self.ImpactInflowComponents,
+            "util_impact_factors": self.UtilityImpactFactors
+        }
+
+        if impactType not in impact_type_mapping:
+            raise ValueError(f'Impact type must be one of: {list(impact_type_mapping.keys())}')
+
+        # Get the correct dictionary for this impact type
+        target_dict = impact_type_mapping[impactType]
+
+        for dto in DTOlist:
+            impactFactorsDict = dto.getLCAImpacts()
+
+            if impactFactorsDict:
+                for impactCat, value in impactFactorsDict.items():
+                    key = (dto.name, impactCat)
+                    target_dict[impactType][key] = value
+            else:
+                # Set zero values for all impact categories if none exist
+                for impactCat in impactCategories:
+                    key = (dto.name, impactCat)
+                    target_dict[impactType][key] = 0
+
+    def _set_waste_management_impact_factors(self, wasteDTOs: list, impactCatagories: list):
         """
         Description
         :param wasteDTOs: list witht the wasteData dto objects
@@ -983,13 +1021,19 @@ class Superstructure:
         """
         for dto in wasteDTOs:
             impactFactorsDict = dto.getLCAImpacts()
-            impactFactorsDict = list(impactFactorsDict.values())[0]  # get the first value of the dict is the only one
-            for impactCat, value in impactFactorsDict.items():
-                key = (dto.name, impactCat)
-                self.WasteDisposalImpactFactors['waste_impact_fac'][key] = value
+            # could be empty if no impact factors are set for the waste type,
+            # in this case we add a zero value for all impact categories to make sure the model runs
+            if impactFactorsDict is not {}:
+                for impactCat, value in impactFactorsDict.items():
+                    key = (dto.name, impactCat)
+                    self.WasteDisposalImpactFactors['waste_impact_fac'][key] = value
+            else:
+                for impactCat in impactCatagories:
+                    key = (dto.name, impactCat)
+                    self.WasteDisposalImpactFactors['waste_impact_fac'][key] = 0
 
 
-    def _set_component_impact_factors(self, componentsDTOs: list):
+    def _set_component_impact_factors(self, componentsDTOs: list, impactCatagories: list):
         """
         Description
         :param component_impact_factors: list of component dtos
@@ -1003,7 +1047,7 @@ class Superstructure:
                 self.ImpactInflowComponents['impact_inFlow_components'][key] = value
 
 
-    def _set_utility_impact_factors(self, utilityDTOs: list):
+    def _set_utility_impact_factors(self, utilityDTOs: list, inpactCatagories: list):
         """
         Description
         :param utilityDTOs: List of utility dtos
