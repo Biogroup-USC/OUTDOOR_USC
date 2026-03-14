@@ -290,4 +290,5 @@ class CentralDataManager:
             self.logger.debug("Unable to refresh LCA buttons after reset: %s", e)
 
 
-
+    def setModelOutput(self, modelOutput):
+        self.modelOutput = modelOutput

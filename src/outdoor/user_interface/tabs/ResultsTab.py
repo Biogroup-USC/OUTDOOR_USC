@@ -3,13 +3,16 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QHBoxLayout, \
 from outdoor.user_interface.utils.LCACalculationMachine import LCACalculationMachine
 from outdoor.user_interface.data.ConstructSuperstructure import ConstructSuperstructure
 from outdoor.outdoor_core.main.superstructure_problem import SuperstructureProblem
+from outdoor.outdoor_core.output_classes.analyzers.basic_analyzer import BasicModelAnalyzer
+#from outdoor.user_interface.interactives.Canvas import *
+from outdoor.user_interface.interactives.CanvasResults import CanvasResults
 
 import logging
 
 
 
 class ResultsTab(QWidget):
-    def __init__(self, centralDataManager, parent=None):
+    def __init__(self, centralDataManager, signalManager, parent=None):
         """
         This method creates the Results tab with dropdown lists for objective, optimization mode,
         and results options, with a calculate button and a canvas on the right.
@@ -20,6 +23,8 @@ class ResultsTab(QWidget):
         self.logger = logging.getLogger(__name__)
 
         self.centralDataManager = centralDataManager
+        self.signalManager = signalManager
+        # self.iconLabels = iconLabels
 
         self.mainLayout = QHBoxLayout()
 
@@ -81,11 +86,19 @@ class ResultsTab(QWidget):
         self.runButton.clicked.connect(self.onCalculateClicked)
         self.leftPanel.addWidget(self.runButton)
 
+        # Save button. Saves the results of the optimization in a txt file and in the centralDataManager
+        # You have to specify the path where you want to save the results.
+        self.saveResultsButton = QPushButton("Save Results")
+        self.saveResultsButton.clicked.connect(self.saveResults)
+        self.leftPanel.addWidget(self.saveResultsButton)
+
         # Add stretch to push controls to the top (keeps the button under Results Options)
         self.leftPanel.addStretch()
 
-        # Right panel as blank canvas
-        self.rightPanel = QWidget()
+        # Right panel as canvas
+        self.rightPanel = CanvasResults(centralDataManager=self.centralDataManager,
+                                 signalManager=self.signalManager)
+
         self.rightPanel.setStyleSheet("background-color: white;")
 
         # Adding panels to the main layout
@@ -123,16 +136,18 @@ class ResultsTab(QWidget):
         """
 
         constructorSuperstructure = ConstructSuperstructure(self.centralDataManager)
+
         if constructorSuperstructure.warningMessage:
             self.logger.error("please be mindful of the following warning Message: {}".format(
                 constructorSuperstructure.warningMessage))
+
         elif constructorSuperstructure.errorMessage:
             self.logger.error("You must fix the issues from the pop-ups before you can save the superstructure object")
             return
 
-        superstructure = constructorSuperstructure.get_superstructure()
-
-        return superstructure
+        else:
+            superstructure = constructorSuperstructure.get_superstructure()
+            return superstructure
 
     def onOptimizationModeChanged(self, mode):
         """
@@ -143,8 +158,6 @@ class ResultsTab(QWidget):
             self.secondObjectiveComboBox.setEnabled(True)
         else:
             self.secondObjectiveComboBox.setEnabled(False)
-
-    import logging
 
     def runSingleOptimization(self, superstructureObj):
 
@@ -162,17 +175,70 @@ class ResultsTab(QWidget):
                 "NumericFocus": 0,
             }
 
-            model_output = abstract_model.solve_optimization_problem(
+            # get the current objective from objectiveComboBox
+            selectedObjective = self.objectiveComboBox.currentText()
+
+
+            if selectedObjective == "EBIT: Earnings Before Income Taxes":
+                selectedObjective = "EBIT"
+            elif selectedObjective == "NPC: Net Production Costs":
+                selectedObjective = "NPC"
+
+            # solve the optimization problem
+            modelOutput = abstract_model.solve_optimization_problem(
                 input_data=superstructureObj,
                 optimization_mode='single',
                 solver='gurobi',
                 interface='local',
                 options=solverOptions,
+                modelObjective=selectedObjective
             )
+
+            # save the general results as a txt file, you have to specify the path
+            modelOutput.get_results(path=None,
+                                    saveName='txt_results')
+
+            # get the results on the canvas
+            self.modelOutput = modelOutput
+            # give the model output to the central data manager so that it can be accessed by other
+            # parts of the application
+            self.centralDataManager.setModelOutput(modelOutput)
+            # make an "analyzer object" which you can use to plot various results
+            self.modelOutputAnalyzer = BasicModelAnalyzer(modelOutput)
+
+            # get the chosen units and place them on the canvas
+            # get the unit processes from the solution object
+            chosenUnits = self.modelOutput.return_chosen()
+            connectedUnits =  self.modelOutputAnalyzer._collect_mass_flows(model_data=self.modelOutput._data,
+                                                                           nDecimals=4)["Mass flows"]
+            self.rightPanel.loadInResults(chosenUnits, connectedUnits)
+            # print(chosenUnits)
+
 
         finally:
             # Reactivate logging
             logging.disable(previous_level)
 
         self.logger.info("Model output generated successfully ...")
+
+
+    def saveResults(self):
+        """
+        Save the results of the optimization in a txt file and in the centralDataManager
+        You have to specify the path where you want to save the results.
+        """
+        if hasattr(self, 'modelOutput'):
+            # Save to centralDataManager
+            self.centralDataManager.set_data('modelOutput', self.modelOutput)
+            self.logger.info("Model output saved to centralDataManager successfully.")
+
+            # Save to txt file
+            savePath = "path/to/save/results"  # Specify your path here
+            self.modelOutput.get_results(path=savePath, saveName='txt_results')
+            self.logger.info(f"Model output saved to {savePath} as txt_results.txt successfully.")
+        else:
+            self.logger.warning("No model output available to save. Please run the optimization first.")
+
+
+
 

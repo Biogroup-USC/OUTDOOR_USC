@@ -16,6 +16,7 @@ from outdoor.user_interface.dialogs.OutputParametersDialog import OutputParamete
 from outdoor.user_interface.dialogs.PhysicalProcessDialog import PhysicalProcessesDialog
 from outdoor.user_interface.dialogs.StoichiometricReactorDialog import StoichiometricReactorDialog
 from outdoor.user_interface.dialogs.YieldReactorDialog import YieldReactorDialog
+from outdoor.user_interface.dialogs.ResultsProcessesDialog import ResultsProcessesDialog
 
 
 class Canvas(QGraphicsView):
@@ -79,6 +80,10 @@ class Canvas(QGraphicsView):
         self.setDragMode(QGraphicsView.NoDrag)
         self.isPanning = False
         self.lastPanPoint = None
+
+        # add label so we know which canvas is which
+        self.scene.setProperty("canvas_id", "canvasSuperstructure")  # or "canvas2" for the second canvas
+        self.scene.setSceneRect(-10000, -10000, 20000, 20000)
 
         # import the icons to the canvas if data is loaded from a file
         self.importData()
@@ -1398,12 +1403,24 @@ class MovableIcon(QGraphicsObject):
         super().mouseReleaseEvent(event)  # Ensure the event is propagated
 
     def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            if self.icon_type == ProcessType.BOOLDISTRIBUTOR or self.icon_type == ProcessType.DISTRIBUTOR:
-                # self.openSplittingDialog()
-                pass
-            else:
-                self.openParametersDialog()
+
+        canvas_id = self.scene().property("canvas_id")
+
+        if canvas_id == "canvasSuperstructure":
+            if event.button() == Qt.LeftButton:
+                if self.icon_type == ProcessType.BOOLDISTRIBUTOR or self.icon_type == ProcessType.DISTRIBUTOR:
+                    # self.openSplittingDialog()
+                    pass
+                else:
+                    self.openParametersDialog()
+
+        elif canvas_id == "canvasResults":
+            if event.button() == Qt.LeftButton:
+                if self.icon_type == ProcessType.BOOLDISTRIBUTOR or self.icon_type == ProcessType.DISTRIBUTOR:
+                    # self.openSplittingDialog()
+                    pass
+                else:
+                    self.openResultsDialog()
 
     # methods to manage the positions of lines between the icons
     def itemChange(self, change, value):
@@ -1425,8 +1442,8 @@ class MovableIcon(QGraphicsObject):
 
         # choose the dialog to open based on the type of icon that was double clicked
         if self.icon_type == ProcessType.INPUT:
-            dialog = InputParametersDialog(initialData=existingData, centralDataManager=self.centralDataManager,
-                                           signalManager= self.signalManager, iconID=self.iconID)
+                dialog = InputParametersDialog(initialData=existingData, centralDataManager=self.centralDataManager,
+                                               signalManager= self.signalManager, iconID=self.iconID)
 
         elif self.icon_type == ProcessType.OUTPUT:
             dialog = OutputParametersDialog(initialData=existingData, centralDataManager=self.centralDataManager,
@@ -1480,6 +1497,17 @@ class MovableIcon(QGraphicsObject):
             unitDTO.updateProcessDTO(field=UpdateField.MATERIALFLOW, value=None)
 
 
+            self.logger.debug("{} Dialog accepted".format(self.icon_type))
+        else:
+            self.logger.debug("{} Dialog canceled".format(self.icon_type))
+
+    def openResultsDialog(self):
+
+        self.logger.info("{} Dialog opened".format(self.icon_type))
+
+        dialog = ResultsProcessesDialog(resultsData=[], centralDataManager=self.centralDataManager,
+                                        iconID=self.iconID)
+        if dialog.exec_():
             self.logger.debug("{} Dialog accepted".format(self.icon_type))
         else:
             self.logger.debug("{} Dialog canceled".format(self.icon_type))

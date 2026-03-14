@@ -311,7 +311,8 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
                                                             signalManager=self.signalManager)
         sensitivityTab = SensitivityTab(centralDataManager=self.centralDataManager)
         uncertaintyTab = UncertaintyTab(centralDataManager=self.centralDataManager)
-        resultsTab = ResultsTab(centralDataManager=self.centralDataManager)
+        resultsTab = ResultsTab(centralDataManager=self.centralDataManager,
+                                signalManager=self.signalManager)
 
         # add Reaction tab to the tab manager
         self.tabManager.addTab(reactionsTab, "ReactionsTab")
