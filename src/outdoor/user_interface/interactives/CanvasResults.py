@@ -69,13 +69,15 @@ class CanvasResults(QGraphicsView):
 
         # Variables for panning (dragging over the canvas)
         self.setDragMode(QGraphicsView.NoDrag)
+        self.isPanning = False
+        self.lastPanPoint = None
 
         # import the icons to the canvas if data is loaded from the output file
         #self.loadInResults(chosenUnits)
 
         # add label so we know which canvas is which
         self.scene.setProperty("canvas_id", "canvasResults")  # or "canvas2" for the second canvas
-        self.scene.setSceneRect(-100000, -100000, 200000, 200000)
+        self.scene.setSceneRect(-10000, -10000, 20000, 20000)
 
     def wheelEvent(self, event):
         # Get the angle delta of the wheel event
@@ -182,13 +184,24 @@ class CanvasResults(QGraphicsView):
             self.currentLine.updateAppearance()  # Redraw the line with the new end point
 
             # If you have any other behavior when moving the mouse, handle it here
+        elif self.isPanning and self.lastPanPoint:
+            # Calculate how much to move the view
+            delta = event.pos() - self.lastPanPoint
+            self.lastPanPoint = event.pos()
+
+            # Move the scene by scrolling
+            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
+            event.accept()
+
         else:
             # Not drawing a line, so pass the event to the base class
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MiddleButton or event.button() == Qt.LeftButton:
-            self.setDragMode(QGraphicsView.NoDrag)
+        if self.isPanning and (event.button() == Qt.MiddleButton or event.button() == Qt.LeftButton):
+            self.isPanning = False
+            self.lastPanPoint = None
             self.setCursor(Qt.ArrowCursor)
             event.accept()
         else:
@@ -254,7 +267,8 @@ class CanvasResults(QGraphicsView):
                 self.selectedElement = None  # Reset the currently selected icon
 
             # now activate the panning mode
-            self.setDragMode(QGraphicsView.ScrollHandDrag)
+            self.isPanning = True
+            self.lastPanPoint = event.pos()
             self.setCursor(Qt.ClosedHandCursor)
             event.accept()
 
@@ -606,6 +620,9 @@ class CanvasResults(QGraphicsView):
 
     def _warningCalculatingDialogbox(self):
         pass
+
+
+
 
 
 
