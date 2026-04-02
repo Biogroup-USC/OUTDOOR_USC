@@ -621,10 +621,36 @@ class CanvasResults(QGraphicsView):
     def _warningCalculatingDialogbox(self):
         pass
 
+    def clearCanvas(self):
+        """
+        Clear all items from the canvas (icons and connections).
+        This method is called before loading new results from a new optimization.
+        """
+        # Clear all items from the scene
+        self.scene.clear()
 
+        # Reset index lists
+        self.index_input = []
+        self.index_process = []
+        self.index_split = []
+        self.index_output = []
 
+        # Reset line drawing variables
+        self.startPoint = None
+        self.endPoint = None
+        self.currentLine = None
+        self.drawingLine = False
+        self.endPort = None
+        self.startPort = None
 
+        # Reset selected element
+        self.selectedElement = None
 
+        # Clear icon data
+        self.iconData = {}
 
+        # Re-add the canvas_id property after clearing
+        self.scene.setProperty("canvas_id", "canvasResults")
+        self.scene.setSceneRect(-10000, -10000, 20000, 20000)
 
-
+        self.logger.info("Canvas cleared successfully")

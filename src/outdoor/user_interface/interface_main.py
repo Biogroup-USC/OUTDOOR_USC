@@ -1,15 +1,11 @@
 import argparse
-import os
 import pickle
 import sys
-import pandas as pd
 import coloredlogs
 from PyQt5.QtWidgets import QTabWidget, QApplication, QMainWindow, QAction, QFileDialog, QDialog, QMessageBox
-from pyparsing import empty
 import bw2data as bw
 from outdoor.user_interface.data.CentralDataManager import CentralDataManager
 from outdoor.user_interface.data.SignalManager import SignalManager
-from outdoor.user_interface.data.superstructure_frame import SuperstructureFrame
 from outdoor.user_interface.data.ConstructSuperstructure import ConstructSuperstructure
 from outdoor.user_interface.data.TabManager import TabManager
 from outdoor.user_interface.dialogs.ConfigEditor import ConfigEditor
@@ -24,9 +20,13 @@ from outdoor.user_interface.tabs.SuperstructureMappingTab import SuperstructureM
 from outdoor.user_interface.tabs.ReactionTab import ReactionsTab
 from outdoor.user_interface.tabs.ProjectDescriptionTab import ProjectDescriptionTab
 from outdoor.user_interface.tabs.UncertaintyTab import UncertaintyTab
-from outdoor.user_interface.utils.OutdoorLogger import outdoorLogger
 from outdoor.user_interface.data.ProcessDTO import ProcessType
 from outdoor.user_interface.dialogs.MethodLCADialog import MethodologyLcaDialog
+
+# for excel export
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+import re
 
 import logging
 
@@ -92,13 +92,18 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         # add print reference to consul
         self.printRefLCA = QAction('Print References LCA', self)
         self.printRefLCA.triggered.connect(self.printReferencesLCA)  # connect to method
+        # print detailed results of the LCA calculations
+        self.printLCAresults = QAction('Print LCA Results', self)
+        self.printLCAresults.triggered.connect(self.printCalculatedLCAresults)  # connect to method
+
         # set up database and calculation methode
         self.setUpLcaAction = QAction('Set up', self)
         self.setUpLcaAction.triggered.connect(self.setUpLca)  # connect to method
 
         lcaMenu.addAction(self.setUpLcaAction)
         lcaMenu.addAction(self.calcLCAAction)
-        lcaMenu.addAction(self.printRefLCA)
+        #lcaMenu.addAction(self.printRefLCA)
+        lcaMenu.addAction(self.printLCAresults)
 
         self.initTabs()
 
@@ -429,6 +434,169 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         for key, val in inventory.items():
             print(key, val)
         #print(inventory)
+
+    def printCalculatedLCAresults(self):
+        """
+        Prints out the references and calculated impacts of the LCA components to the console,
+        and stores them in an inventory structure for export to Excel.
+        Supports multiple references/exchanges per component.
+        """
+
+        self.logger.info("Collecting LCA references..")
+
+        biglist = (
+            self.centralDataManager.componentData
+            + self.centralDataManager.wasteData
+            + self.centralDataManager.utilityData
+        )
+
+        inventory = {}
+
+        self.outd = bw.Database('outdoor')
+
+        for component in biglist:
+            if len(component.LCA['exchanges']) == 0:
+                continue
+
+            try:
+                component_name = component.name
+
+                # Collect all references/exchanges for this component
+                references = []
+                for exchange_name, exchange_data in component.LCA.get('exchanges', {}).items():
+                    reference = exchange_data.get('Reference', '')
+                    region = exchange_data.get('Region', '')
+                    demand_value = exchange_data.get('Demand', '')
+                    unit_value = exchange_data.get('Unit', '')
+                    demand = f"{demand_value} {unit_value}".strip()
+
+                    references.append({
+                        'Exchange': exchange_name,
+                        'Reference': reference,
+                        'Region': region,
+                        'Demand': demand
+                    })
+
+                # Collect impacts
+                impacts = {}
+                for impact_cat, value in component.LCA.get('Results', {}).items():
+                    impacts[impact_cat] = value
+
+                inventory[component_name] = {
+                    'References': references,
+                    'Impacts': impacts
+                }
+
+            except Exception as e:
+                self.logger.error(f"Error while processing component '{component.name}': {e}")
+
+        # Print results after inventory is fully built
+        for component_name, data in inventory.items():
+            print("\n\n")
+            print(component_name)
+            print('-------------------------------')
+            print("References:")
+            for ref in data.get('References', []):
+                print(
+                    f"  - Exchange: {ref.get('Exchange', '')}, "
+                    f"Reference: {ref.get('Reference', '')}, "
+                    f"Region: {ref.get('Region', '')}, "
+                    f"Demand: {ref.get('Demand', '')}"
+                )
+
+            print("Impacts:")
+            for impact_cat, value in data.get('Impacts', {}).items():
+                print(f"-- {impact_cat} : {value}")
+
+        # Export once
+        self.exportInventory2Excel(inventory)
+
+    def exportInventory2Excel(self, inventory, filepath="Calculated_LCA_results.xlsx"):
+        """
+        Export inventory to Excel with:
+        - one overview sheet listing all component references
+        - one sheet per component
+        - support for multiple references per component
+        """
+
+        wb = Workbook()
+        ws_overview = wb.active
+        ws_overview.title = "Overview"
+
+        def safe_sheet_name(name):
+            name = re.sub(r'[:\\/*?\[\]]', '_', str(name))
+            return name[:31]
+
+        try:
+            # -------------------------
+            # Overview sheet
+            # -------------------------
+            ws_overview.cell(row=1, column=1, value="Component")
+            ws_overview.cell(row=1, column=2, value="Exchange")
+            ws_overview.cell(row=1, column=3, value="Reference")
+            ws_overview.cell(row=1, column=4, value="Region")
+            ws_overview.cell(row=1, column=5, value="Demand")
+
+            row_overview = 2
+            for component_name, data in inventory.items():
+                references = data.get('References', [])
+
+                for ref in references:
+                    ws_overview.cell(row=row_overview, column=1, value=component_name)
+                    ws_overview.cell(row=row_overview, column=2, value=ref.get('Exchange', ''))
+                    ws_overview.cell(row=row_overview, column=3, value=ref.get('Reference', ''))
+                    ws_overview.cell(row=row_overview, column=4, value=ref.get('Region', ''))
+                    ws_overview.cell(row=row_overview, column=5, value=ref.get('Demand', ''))
+                    row_overview += 1
+
+            # -------------------------
+            # Component sheets
+            # -------------------------
+            for component_name, data in inventory.items():
+                ws = wb.create_sheet(title=safe_sheet_name(component_name))
+
+                # Reference table
+                ws.cell(row=1, column=1, value='Exchange')
+                ws.cell(row=1, column=2, value='Reference')
+                ws.cell(row=1, column=3, value='Region')
+                ws.cell(row=1, column=4, value='Demand')
+
+                row = 2
+                for ref in data.get('References', []):
+                    ws.cell(row=row, column=1, value=ref.get('Exchange', ''))
+                    ws.cell(row=row, column=2, value=ref.get('Reference', ''))
+                    ws.cell(row=row, column=3, value=ref.get('Region', ''))
+                    ws.cell(row=row, column=4, value=ref.get('Demand', ''))
+                    row += 1
+
+                # Leave one empty row, then impacts
+                row += 1
+                ws.cell(row=row, column=1, value='Impact Category')
+                ws.cell(row=row, column=2, value='Impact')
+
+                row += 1
+                for impact_cat, value in data.get('Impacts', {}).items():
+                    ws.cell(row=row, column=1, value=impact_cat)
+                    ws.cell(row=row, column=2, value=value)
+                    row += 1
+
+            # -------------------------
+            # Auto-width for all sheets
+            # -------------------------
+            for ws in wb.worksheets:
+                for col_idx in range(1, ws.max_column + 1):
+                    col_letter = get_column_letter(col_idx)
+                    max_len = 0
+                    for cell in ws[col_letter]:
+                        if cell.value is not None:
+                            max_len = max(max_len, len(str(cell.value)))
+                    ws.column_dimensions[col_letter].width = max_len + 2
+
+            wb.save(filepath)
+            self.logger.info(f"Excel export completed: {filepath}")
+
+        except Exception as e:
+            self.logger.error(f"Excel export failed: {e}")
 
     def setUpLca(self):
         # create a dialog widget so that we can extract the methodology we want to use to calculate the CF

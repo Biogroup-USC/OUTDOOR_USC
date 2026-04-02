@@ -96,7 +96,7 @@ class SingleOptimizer:
                          printTimer=True,
                          VSS_EVPI_mode=False,
                          stochastic_optimisation=False,
-                         runFeasibilityAnalysis=True):
+                         runFeasibilityAnalysis=False):
 
 
         """
@@ -147,6 +147,13 @@ class SingleOptimizer:
 
                     raise Exception("The model is infeasible, please check the input data is correct. \n"
                                     " TIP check: 1) the minimum and maximum pool/source fluxes \n"
+                                    "2) Split fractions of unit processes \n"
+                                    "3) The Product load if active")
+
+                else:
+                    raise Exception("The model is infeasible, please check if all the input data is correct. \n"
+                                    " TIP check: \n"
+                                    "1) the minimum and maximum pool/source fluxes \n"
                                     "2) Split fractions of unit processes \n"
                                     "3) The Product load if active")
 

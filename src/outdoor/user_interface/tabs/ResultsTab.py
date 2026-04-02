@@ -1,5 +1,7 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QHBoxLayout, \
-    QGroupBox, QLabel, QComboBox
+    QGroupBox, QLabel, QComboBox, QDialog, QApplication
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QMovie
 from outdoor.user_interface.utils.LCACalculationMachine import LCACalculationMachine
 from outdoor.user_interface.data.ConstructSuperstructure import ConstructSuperstructure
 from outdoor.outdoor_core.main.superstructure_problem import SuperstructureProblem
@@ -8,6 +10,7 @@ from outdoor.outdoor_core.output_classes.analyzers.basic_analyzer import BasicMo
 from outdoor.user_interface.interactives.CanvasResults import CanvasResults
 
 import logging
+import os
 
 
 
@@ -25,6 +28,7 @@ class ResultsTab(QWidget):
         self.centralDataManager = centralDataManager
         self.signalManager = signalManager
         # self.iconLabels = iconLabels
+        self.waitingDialog = None
 
         self.mainLayout = QHBoxLayout()
 
@@ -115,17 +119,26 @@ class ResultsTab(QWidget):
 
        # first get the superstructure object from the canvas
         superstructure = self.generateSuperstructureObject()
+
+        # Check if superstructure generation was successful
+        if superstructure is None:
+            self.logger.error("Failed to generate superstructure. Optimization cancelled.")
+            return
+
         self.logger.info("Superstructure object generated successfully. Proceeding with optimization...")
 
         # get the drop down value of the optimization mode
         optimizationMode = self.optimizationModeComboBox.currentText()
+
+        # display a message on the canvas that the optimization is running and it might take a while
+        self.showWaitingDialog("Running optimization... This may take a while.")
 
         if optimizationMode == 'Single Objective':
             self.runSingleOptimization(superstructure)
         else:
             self.logger.info("not quite implemented yet, "
                              "under construction! Please select Single Objective for now.")
-            pass
+            self.closeWaitingDialog()
 
 
 
@@ -211,13 +224,23 @@ class ResultsTab(QWidget):
             chosenUnits = self.modelOutput.return_chosen()
             connectedUnits =  self.modelOutputAnalyzer._collect_mass_flows(model_data=self.modelOutput._data,
                                                                            nDecimals=4)["Mass flows"]
+            # Clear the canvas before loading new results
+            self.rightPanel.clearCanvas()
+            # Load the new results onto the canvas
             self.rightPanel.loadInResults(chosenUnits, connectedUnits)
-            # print(chosenUnits)
+
+        # catch any exceptions that occur during optimization and display an error dialog
+        except Exception as e:
+            self.logger.error(f"An error occurred during optimization: {str(e)}")
+            self.optimizationErrorDialog(str(e))
+
 
 
         finally:
             # Reactivate logging
             logging.disable(previous_level)
+            # Close the waiting dialog
+            self.closeWaitingDialog()
 
         self.logger.info("Model output generated successfully ...")
 
@@ -238,6 +261,188 @@ class ResultsTab(QWidget):
             self.logger.info(f"Model output saved to {savePath} as txt_results.txt successfully.")
         else:
             self.logger.warning("No model output available to save. Please run the optimization first.")
+
+
+    def showWaitingDialog(self, message):
+        """
+        Show a waiting message as a dialog while the optimization is running.
+        :param message: The message to display
+        """
+        # Disable all controls in the left panel
+        self.disableAllControls()
+
+        # Create a custom dialog with spinning wheel
+        self.waitingDialog = QDialog(self)
+        self.waitingDialog.setWindowTitle("Optimization in Progress")
+        self.waitingDialog.setWindowFlags(self.waitingDialog.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
+        self.waitingDialog.setFixedSize(300, 150)
+
+        # Create layout
+        layout = QVBoxLayout(self.waitingDialog)
+
+        # Create label for the spinner
+        waitingLabel = QLabel()
+        waitingLabel.setAlignment(Qt.AlignCenter)
+
+        # Create label for the text
+        textLabel = QLabel(message)
+        textLabel.setAlignment(Qt.AlignCenter)
+        textLabel.setWordWrap(True)
+
+        # Add loading spinner animation
+        # loading.gif is located in the utils directory
+        gifPath = os.path.join(os.path.dirname(__file__), "..", "utils", "loading.gif")
+        if os.path.exists(gifPath):
+            movie = QMovie(gifPath)
+            movie.setScaledSize(QSize(50, 50))
+            waitingLabel.setMovie(movie)
+            movie.start()
+
+        # Add widgets to layout
+        layout.addWidget(waitingLabel)
+        layout.addWidget(textLabel)
+
+        # Show the dialog
+        self.waitingDialog.setModal(True)
+        self.waitingDialog.show()
+        QApplication.instance().processEvents()
+
+    def disableAllControls(self):
+        """
+        Disable all interactive controls in the left panel and canvas during optimization.
+        """
+        self.objectiveComboBox.setEnabled(False)
+        self.optimizationModeComboBox.setEnabled(False)
+        self.secondObjectiveComboBox.setEnabled(False)
+        self.resultsOptionsComboBox.setEnabled(False)
+        self.runButton.setEnabled(False)
+        self.saveResultsButton.setEnabled(False)
+        # Disable the canvas
+        self.rightPanel.setEnabled(False)
+
+    def enableAllControls(self):
+        """
+        Re-enable all interactive controls in the left panel and canvas after optimization.
+        """
+        self.objectiveComboBox.setEnabled(True)
+        self.optimizationModeComboBox.setEnabled(True)
+        # Only enable second objective if multi-objective is selected
+        if self.optimizationModeComboBox.currentText() == 'Multi-Objective':
+            self.secondObjectiveComboBox.setEnabled(True)
+        else:
+            self.secondObjectiveComboBox.setEnabled(False)
+        self.resultsOptionsComboBox.setEnabled(True)
+        self.runButton.setEnabled(True)
+        self.saveResultsButton.setEnabled(True)
+        # Re-enable the canvas
+        self.rightPanel.setEnabled(True)
+
+    def closeWaitingDialog(self):
+        """
+        Close the waiting dialog when optimization is complete.
+        """
+        if self.waitingDialog:
+            self.waitingDialog.close()
+            self.waitingDialog = None
+            # Re-enable all controls
+            self.enableAllControls()
+            QApplication.instance().processEvents()
+
+    def optimizationErrorDialog(self, errorMessage):
+        """
+        Show a professional error dialog if optimization fails.
+        :param errorMessage: The error message to display
+        """
+        errorDialog = QDialog(self)
+        errorDialog.setWindowTitle("Optimization Error")
+        errorDialog.setWindowFlags(errorDialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        errorDialog.setFixedSize(500, 250)
+
+        # Create layout
+        layout = QVBoxLayout(errorDialog)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Title label
+        titleLabel = QLabel("Optimization Failed")
+        titleFont = titleLabel.font()
+        titleFont.setPointSize(12)
+        titleFont.setBold(True)
+        titleLabel.setFont(titleFont)
+        titleLabel.setAlignment(Qt.AlignLeft)
+
+        # Separator line
+        separator = QLabel("━" * 50)
+        separator.setStyleSheet("color: #cccccc;")
+
+        # Error message label
+        messageLabel = QLabel("The following error occurred during optimization:")
+        messageLabel.setStyleSheet("color: #333333; font-weight: bold;")
+
+        # Error details (scrollable text area)
+        errorDetailLabel = QLabel(errorMessage)
+        errorDetailLabel.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        errorDetailLabel.setWordWrap(True)
+        errorDetailLabel.setStyleSheet("""
+            QLabel {
+                background-color: #f5f5f5;
+                border: 1px solid #cccccc;
+                border-radius: 2px;
+                padding: 10px;
+                color: #d32f2f;
+                font-family: 'Courier New', monospace;
+                font-size: 9pt;
+            }
+        """)
+
+        # Add stretch to push error details up
+        errorDetailLabel.setMinimumHeight(80)
+
+        # OK button
+        okButton = QPushButton("OK")
+        okButton.setFixedWidth(100)
+        okButton.clicked.connect(errorDialog.accept)
+        okButton.setStyleSheet("""
+            QPushButton {
+                color: #ffffff;
+                background-color: #5a9;
+                border-style: outset;
+                border-width: 2px;
+                border-radius: 10px;
+                border-color: beige;
+                font: bold 14px;
+                padding: 6px;
+            }
+            QPushButton:hover {
+                background-color: #78d;
+            }
+            QPushButton:pressed {
+                background-color: #569;
+                border-style: inset;
+            }
+        """)
+
+        # Button layout
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+        buttonLayout.addWidget(okButton)
+
+        # Add all widgets to layout
+        layout.addWidget(titleLabel)
+        layout.addWidget(separator)
+        layout.addWidget(messageLabel)
+        layout.addWidget(errorDetailLabel)
+        layout.addLayout(buttonLayout)
+
+        # Apply dialog stylesheet
+        errorDialog.setStyleSheet("""
+            QDialog {
+                background-color: #f2f2f2;
+            }
+        """)
+
+        # Show the dialog
+        errorDialog.exec_()
 
 
 

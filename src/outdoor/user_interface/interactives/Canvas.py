@@ -1416,7 +1416,8 @@ class MovableIcon(QGraphicsObject):
 
         elif canvas_id == "canvasResults":
             if event.button() == Qt.LeftButton:
-                if self.icon_type == ProcessType.BOOLDISTRIBUTOR or self.icon_type == ProcessType.DISTRIBUTOR:
+                if (self.icon_type == ProcessType.BOOLDISTRIBUTOR or self.icon_type == ProcessType.DISTRIBUTOR or
+                    self.icon_type == ProcessType.INPUT or self.icon_type == ProcessType.OUTPUT):
                     # self.openSplittingDialog()
                     pass
                 else:
@@ -1643,7 +1644,37 @@ class InteractiveLine(QGraphicsPathItem):
 
             self.updateAppearance()  # Update appearance
 
+        elif event.button() == Qt.RightButton:
+            self.mouseRightClickEvent(event)
+
         super().mousePressEvent(event)
+
+    def mouseRightClickEvent(self, event):
+        self.isCurved = not self.isCurved  # Toggle between curved and straight line
+        if self.isCurved and not self.controlPoint:
+            # Create and add the control point only if transitioning to curved for the first time
+            midPoint = QPointF((self.startPoint.x() + self.endPoint.x()) / 2,
+                               (self.startPoint.y() + self.endPoint.y()) / 2)
+            self.controlPoint = ControlPoint(midPoint.x(), midPoint.y(), self)
+
+        else: # deactivate the line curve data if it's not active any more
+            # get the DTO from where the line starts from and the stream number
+            streamNumber = self.startPort.exitStream
+            idDTO = self.startPort.iconID
+            sendingDTO = self.centralDataManager.unitProcessData[idDTO]
+            if sendingDTO.type in [ProcessType.DISTRIBUTOR, ProcessType.BOOLDISTRIBUTOR]:
+                nr = sendingDTO.distributorLineUnitMap[self.endPort.iconID]
+                sendingDTO.curvatureLinesDistributor[nr] = None
+
+            elif sendingDTO.type == ProcessType.INPUT:
+                nr = sendingDTO.inputLineUnitMap[self.endPort.iconID]
+                sendingDTO.curvatureLinesInput[nr] = None
+
+            else:
+                sendingDTO.curvatureLines[streamNumber] = None
+
+        self.updateAppearance()
+        super().mouseDoubleClickEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         self.isCurved = not self.isCurved  # Toggle between curved and straight line
