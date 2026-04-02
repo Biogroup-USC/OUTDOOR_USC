@@ -22,6 +22,7 @@ from outdoor.user_interface.tabs.ProjectDescriptionTab import ProjectDescription
 from outdoor.user_interface.tabs.UncertaintyTab import UncertaintyTab
 from outdoor.user_interface.data.ProcessDTO import ProcessType
 from outdoor.user_interface.dialogs.MethodLCADialog import MethodologyLcaDialog
+from outdoor.user_interface.data.ComponentEmissionDTO import ComponentEmissionDTO
 
 # for excel export
 from openpyxl import Workbook
@@ -177,9 +178,17 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         and adds them with default values if they are missing
         :return:
         """
-
+        # add the component emission data if it does not exist,
+        # this is a new addition and might be missing in old project files
         if not hasattr(self.centralDataManager, 'componentEmissionData'):
             self.centralDataManager.componentEmissionData = []
+        # add dto's of emmission data for all existing components if the component emission data list is empty,
+        # this is to avoid problems with old project files that do not have the component emission data
+        if len(self.centralDataManager.componentData) > 0 and len(self.centralDataManager.componentEmissionData) == 0:
+            # add DTO's for all existing components
+            for componentDTO in self.centralDataManager.componentData:
+                emissionDTO = ComponentEmissionDTO(rowposition=componentDTO.rowPosition, uid=componentDTO.uid, name=componentDTO.name)
+                self.centralDataManager.componentEmissionData.append(emissionDTO)
 
         # check if the attributes for the LCA databases exist, if not initialize them with default values
         if not hasattr(self.centralDataManager, 'technosphereDatabaseLCA'):

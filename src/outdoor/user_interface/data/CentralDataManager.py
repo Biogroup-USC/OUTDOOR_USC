@@ -88,6 +88,9 @@ class CentralDataManager:
             case "sensitivityData":
                 self.sensitivityData = data
 
+            case "componentEmissionData":
+                self.componentEmissionData = data
+
             case _:
                 self.logger.error(f"Error: Field \"{field}\" not recognized")
 

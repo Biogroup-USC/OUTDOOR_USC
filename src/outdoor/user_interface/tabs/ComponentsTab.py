@@ -3,13 +3,11 @@ import uuid
 
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QPushButton, QLabel, QTableWidgetItem, QMenu
-from outdoor.user_interface.tabs.ReactionTab import ReactionsTab
 from outdoor.user_interface.data.ComponentDTO import ComponentDTO
+from outdoor.user_interface.data.ComponentEmissionDTO import ComponentEmissionDTO
 from outdoor.user_interface.dialogs.LcaButton import LcaButton
 from outdoor.user_interface.utils.DoubleDelegate import DoubleDelegate
-from outdoor.user_interface.data.ProcessDTO import ProcessType
-# retrive the logger
-from outdoor.user_interface.utils.OutdoorLogger import outdoorLogger
+
 
 
 class ComponentsTab(QWidget):
@@ -26,6 +24,7 @@ class ComponentsTab(QWidget):
         # add the central data manager
         self.centralDataManager = centralDataManager
         self.componentList: list[ComponentDTO] = centralDataManager.componentData
+        self.componentEmissionData: list[ComponentEmissionDTO] = centralDataManager.componentEmissionData
 
         # add the tab manager
         self.tabManager = tabManager
@@ -135,13 +134,16 @@ class ComponentsTab(QWidget):
         self.addingRowFlag = True
 
         rowPosition: int
-        if data is None or not isinstance(data, ComponentDTO):
+        if data is None or not isinstance(data, ComponentDTO) | isinstance(data, ComponentEmissionDTO):
             rowPosition = self.componentsTable.rowCount()
             uid = uuid.uuid4().__str__()
             data = ComponentDTO(rowPosition, uid)
+            dataEmissions = ComponentEmissionDTO(rowPosition, uid)
             self.componentList.append(data)
+            self.componentEmissionData.append(dataEmissions)
         else:
             rowPosition = data.rowPosition
+
         self.componentsTable.insertRow(rowPosition)
 
         for key, value in data.as_dict().items():
@@ -150,24 +152,35 @@ class ComponentsTab(QWidget):
                 if key == "LCA":
                     btn = self._createLcaLikeButton(data=data, connectAction=True)
                     self.componentsTable.setCellWidget(rowPosition, index, btn)
+                    # UI only for now: same button style as LCA Data, but no click action yet.
+                    dataEmissions = self._findEmissionData(data.uid)
+                    emissionsBtn = self._createLcaLikeButton(data=dataEmissions, connectAction=True)
+                    self.componentsTable.setCellWidget(rowPosition, self.lcaEmissionsColumn, emissionsBtn)
+
                 else:
                     insert = QTableWidgetItem(value)
                     insert.setFlags(insert.flags() | Qt.ItemIsEditable)
                     self.componentsTable.setItem(rowPosition, index, insert)
 
-        # UI only for now: same button style as LCA Data, but no click action yet.
-        emissionsBtn = self._createLcaLikeButton(data=data, connectAction=False)
-        self.componentsTable.setCellWidget(rowPosition, self.lcaEmissionsColumn, emissionsBtn)
+
 
         # set the flag of adding a row to false
         self.addingRowFlag = False
 
-    def _createLcaLikeButton(self, data: ComponentDTO, connectAction: bool = True):
+    def _createLcaLikeButton(self, data: ComponentDTO | ComponentEmissionDTO, connectAction: bool = True):
         btn = LcaButton(self.componentsTable, data, centralDataManager=self.centralDataManager)
         btn.changeColorBnt()
         if connectAction:
             btn.clicked.connect(btn.lcaAction)
         return btn
+
+    def _findEmissionData(self, uid: str = None):
+        if uid is None:
+            return None
+        for data in self.componentEmissionData:
+            if data.uid == uid:
+                return data
+        return None
 
 
     def doubleClickEvent(self, item):
@@ -194,6 +207,7 @@ class ComponentsTab(QWidget):
             self.collectData()
             # Save the data to the central data manager
             self.centralDataManager.addData("chemicalComponentsData", self.componentList)
+            self.centralDataManager.addData(("componentEmissionData", self.componentEmissionData))
             self.logger.debug("Data saved components tab to central data manager")
 
     def updateData(self, oldChemicalName, newChemicalName):
