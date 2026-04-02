@@ -981,9 +981,9 @@ class PhysicalProcessesDialog(QDialog):
         self._createSectionTitle(text="Separation Fractions", layout=main_layout)
 
         # Add a table to the layout for separation efficiency
-        self.separationEfficiencyTable = QTableWidget(0, 5, self)  # Initial rows, columns
+        self.separationEfficiencyTable = QTableWidget(0, 6, self)  # Initial rows, columns
         self.separationEfficiencyTable.setHorizontalHeaderLabels(
-            ["Component Name", "Stream 1", "Stream 2", "Stream 3", "Waste"])
+            ["Component Name", "Stream 1", "Stream 2", "Stream 3", "Environmental Emission", "Waste"])
 
         # Set the column width for the first column
         self.separationEfficiencyTable.setColumnWidth(0, 200)  # make column 1 wider
@@ -1117,28 +1117,27 @@ class PhysicalProcessesDialog(QDialog):
     def _updateWasteFraction(self, row):
         """
         Updates the editability of columns Waste based on the waste management method.
+        The waste fraction is calculated as: 1 - Stream1 - Stream2 - Stream3 - Environmental Emission
         """
-        # Update Waste column
-
-        #WasteEditLine = self.separationEfficiencyTable.cellWidget(row, 4)  # Waste column
-        #item = self._getCellValue(self.separationEfficiencyTable, row, 4)
-
+        # Get all stream values
         stream1 = self._getCellValue(self.separationEfficiencyTable, row, 1)
         stream2 = self._getCellValue(self.separationEfficiencyTable, row, 2)
         stream3 = self._getCellValue(self.separationEfficiencyTable, row, 3)
+        environmentalEmission = self._getCellValue(self.separationEfficiencyTable, row, 4)
 
-        wasteFraction = round(1 - stream1 - stream2 - stream3, 3)
+        # Calculate waste fraction accounting for environmental emission
+        wasteFraction = round(1 - stream1 - stream2 - stream3 - environmentalEmission, 3)
         if wasteFraction < 0:
             # text should be red
             insert = QTableWidgetItem(str(wasteFraction))
             # set the background color to light red
             insert.setBackground(QColor(255, 0, 0))
-            self.separationEfficiencyTable.setItem(row, 4, insert)
+            self.separationEfficiencyTable.setItem(row, 5, insert)
             self.separationErrorDict[row] = True
 
         else:
             # set the text of the waste edit line to the waste fraction
-            self.separationEfficiencyTable.setItem(row, 4, QTableWidgetItem(str(wasteFraction)))
+            self.separationEfficiencyTable.setItem(row, 5, QTableWidgetItem(str(wasteFraction)))
             self.separationErrorDict[row] = False
 
     def _getCellValue(self, table, row, column):
@@ -1237,15 +1236,15 @@ class PhysicalProcessesDialog(QDialog):
             table.setItem(rowPosition, 2, QTableWidgetItem(""))
             table.setItem(rowPosition, 3, QTableWidgetItem(""))
 
-            # make the last column read only
+            # make the waste column (last column) read only
             item = QTableWidgetItem()
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            table.setItem(rowPosition, 4, item)
+            table.setItem(rowPosition, 5, item)
 
-            # Add QLineEdit with QDoubleValidator for "Stoichiometric" and "Conversion Factor" columns
-            for columnIndex in [1, 2, 3]:  # Columns stream 1, stream 2, stream 3
+            # Add QLineEdit with QDoubleValidator for Stream columns and Environmental Emission
+            for columnIndex in [1, 2, 3, 4]:  # Columns stream 1, stream 2, stream 3, environmental emission
                 lineEdit = QLineEdit()
-                validator = QDoubleValidator(0.0, 1.0, 3)  # Values between 0 and 1, up to 5 decimal places
+                validator = QDoubleValidator(0.0, 1.0, 3)  # Values between 0 and 1, up to 3 decimal places
                 validator.setNotation(QDoubleValidator.StandardNotation)
                 lineEdit.setValidator(validator)
                 table.setCellWidget(rowPosition, columnIndex, lineEdit)
@@ -1799,7 +1798,8 @@ class PhysicalProcessesDialog(QDialog):
                 table.cellWidget(rowPosition, 1).setText(str(rowData['Stream 1']))  # QLineEdit for Stream 1
                 table.cellWidget(rowPosition, 2).setText(str(rowData['Stream 2']))  # QLineEdit for Stream 2
                 table.cellWidget(rowPosition, 3).setText(str(rowData['Stream 3']))  # QLineEdit for Stream 3
-                table.item(rowPosition, 4).setText(str(rowData['Waste']))  # Read-only item for Waste
+                table.cellWidget(rowPosition, 4).setText(str(rowData.get('Environmental Emission',0)))  # QLineEdit for Environmental Emission, 0 if non-existent
+                table.item(rowPosition, 5).setText(str(rowData['Waste']))  # Read-only item for Waste
 
             else:
                 # Populate standard tables with component names
@@ -1889,7 +1889,7 @@ class PhysicalProcessesDialog(QDialog):
 
         # ----------------------------------------------------------------------------------------------------------
         # Chilling Requirements
-        self._createSectionTitle(text="Chilling Requierments", layout=layout)
+        self._createSectionTitle(text="Chilling Requirements", layout=layout)
         # ----------------------------------------------------------------------------------------------------------
 
         # Reference Flow type Chilling
@@ -1964,12 +1964,14 @@ class PhysicalProcessesDialog(QDialog):
                 stream1 = self._getCellValue(table, row, 1)
                 stream2 = self._getCellValue(table, row, 2)
                 stream3 = self._getCellValue(table, row, 3)
-                waste = self._getCellValue(table, row, 4)
+                environmentalEmission = self._getCellValue(table, row, 4)
+                waste = self._getCellValue(table, row, 5)
                 data.append({
                     'Component': component,
                     'Stream 1': stream1,
                     'Stream 2': stream2,
                     'Stream 3': stream3,
+                    'Environmental Emission': environmentalEmission,
                     'Waste': waste
                 })
         else:
