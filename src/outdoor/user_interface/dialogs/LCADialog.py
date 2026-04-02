@@ -150,6 +150,8 @@ class LCADialog(QDialog):
         except Exception as e:
             # Already registered outdoor db
             pass
+
+        # present the layout of the dialog
         layout = QVBoxLayout(self)
         self.dto = initialData
         # Lookup name
@@ -214,7 +216,7 @@ class LCADialog(QDialog):
         self.loadInitialData()
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Backspace | Qt.Key_Delete:
+        if event.key() == Qt.Key_Backspace or event.key() == Qt.Key_Delete:
             all = self.selectedProcessesTable.selectedItems()
             rows = []
             for item in all:
@@ -266,7 +268,7 @@ class LCADialog(QDialog):
                 rowPosition = self.selectedProcessesTable.rowCount()
                 table = self.selectedProcessesTable
             case _:
-                self.logger.error("Something is wrong with your table.")
+                self.logger.error("Something is wrong with your LCA table.")
                 return
         table.insertRow(rowPosition)
         if "Type" in kwargs:

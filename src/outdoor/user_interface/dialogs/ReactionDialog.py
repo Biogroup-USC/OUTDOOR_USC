@@ -388,3 +388,24 @@ class ReactionDialog(QDialog):
 
         warningDialog.setLayout(layout)
         warningDialog.exec_()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Backspace or event.key() == Qt.Key_Delete:
+            # Determine which table was clicked
+            reactants_pos = self.reactantsTable.viewport().mapFrom(self, event.pos())
+            products_pos = self.productsTable.viewport().mapFrom(self, event.pos())
+
+            if self.reactantsTable.geometry().contains(event.pos()):
+                # Determine the row that was clicked in the reactants table
+                row = self.reactantsTable.rowAt(reactants_pos.y())
+                if row != -1:
+                    self.reactantsTable.removeRow(row)
+
+            elif self.productsTable.geometry().contains(event.pos()):
+                # Determine the row that was clicked in the products table
+                row = self.productsTable.rowAt(products_pos.y())
+                if row != -1:
+                    self.productsTable.removeRow(row)
+
+
+

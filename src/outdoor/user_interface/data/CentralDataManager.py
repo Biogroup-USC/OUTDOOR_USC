@@ -10,6 +10,7 @@ import pickle
 from pathlib import Path
 
 from outdoor.user_interface.data.ComponentDTO import ComponentDTO
+from outdoor.user_interface.data.ComponentEmissionDTO import ComponentEmissionDTO
 from outdoor.user_interface.data.ProcessDTO import ProcessDTO, ProcessType
 from outdoor.user_interface.data.ReactionDTO import ReactionDTO
 from outdoor.user_interface.data.SensitivityDTO import SensitivityDTO
@@ -42,6 +43,7 @@ class CentralDataManager:
         self.wasteData: list[WasteTreatmentDTO] = []
         self.wasteManagementTypes: list[str] = []
         self.componentData: list[ComponentDTO] = []
+        self.componentEmissionData: list[ComponentEmissionDTO] = []
         self.reactionData: list[ReactionDTO] = []
         self.struct = SuperstructureFrame()
         self._outputList: list[str] = []

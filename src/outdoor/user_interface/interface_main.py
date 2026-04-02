@@ -177,6 +177,10 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
         and adds them with default values if they are missing
         :return:
         """
+
+        if not hasattr(self.centralDataManager, 'componentEmissionData'):
+            self.centralDataManager.componentEmissionData = []
+
         # check if the attributes for the LCA databases exist, if not initialize them with default values
         if not hasattr(self.centralDataManager, 'technosphereDatabaseLCA'):
             self.centralDataManager.technosphereDatabaseLCA = "ecoinvent-3.9.1-consequential"
