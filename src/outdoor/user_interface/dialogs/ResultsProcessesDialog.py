@@ -107,6 +107,11 @@ class ResultsProcessesDialog(QDialog):
                 CAPEXTotalLineEdit.setReadOnly(True)
                 formLayout.addRow(QLabel("Total CAPEX:"), CAPEXTotalLineEdit)
 
+                # get the number of parralell units if available from N_CAPEX
+                nCapex = self._get_nCAPEX(self.iconID)
+                nCAPEXLineEdit = QLineEdit(f"{nCapex}")
+                nCAPEXLineEdit.setReadOnly(True)
+                formLayout.addRow(QLabel("Number of parallel units:"), nCAPEXLineEdit)
 
                 # CAPEX of the unit
                 capexUnit = (self.modelOutput._data['ACC'][self.iconID]   # annual CAPEX from the unit itself
@@ -144,6 +149,23 @@ class ResultsProcessesDialog(QDialog):
         layout.addStretch()
         tab.setLayout(layout)
         return tab
+
+    def _get_nCAPEX(self, iconID):
+        """Returns the number of parallel units needed for a given unit."""
+
+
+
+        num_parallel = 0
+        for n in range(1, 5):  # Assuming a reasonable upper limit of 20 parallel units; adjust as needed
+
+            #if self.modelOutput._data['REF_FLOW_CAPEX_UNIT'][iconID, n] > 1e-6:  # Check if there is a reference flow for this number of parallel units
+                # print("flow found in n: ", n)
+                # print("mass passing through: ", self.modelOutput._data['REF_FLOW_CAPEX_UNIT'][iconID, n])
+
+            if self.modelOutput._data['Y_PARALLEL_UNIT'][iconID, n] > 0.5:
+                num_parallel += 1
+
+        return num_parallel
 
     def _OPExResults(self):
         tab = QWidget()

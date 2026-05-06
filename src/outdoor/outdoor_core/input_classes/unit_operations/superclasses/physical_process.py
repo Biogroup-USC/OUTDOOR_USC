@@ -54,6 +54,7 @@ class PhysicalProcess(Process):
 
         self.turn_over_acc = {'to_acc': {self.Number: 0}}
         self.turnover_factors = {'CostPercentage': None, 'TimeSpan': None, 'TimeMode': 'No Mode'}
+        self.upperFlowLimitUnit = {'upperFlowLimitUnit': {self.Number: None}}
 
 
 
@@ -139,7 +140,8 @@ class PhysicalProcess(Process):
                           CostExponent,
                           ReferenceYear,
                           ReferenceFlowType,
-                          ReferenceFlowComponentList
+                          ReferenceFlowComponentList,
+                          upperFlowLimitUnit
                           ):
 
 
@@ -150,6 +152,8 @@ class PhysicalProcess(Process):
                                 ReferenceFlow,
                                 CostExponent,
                                 ReferenceYear)
+
+        self.__set_upperFlowLimitUnit(upperFlowLimitUnit)
 
         self.__set_kappa_2_capex(ReferenceFlowType)
         self.__set_kappa_1_capex(ReferenceFlowComponentList)
@@ -164,6 +168,9 @@ class PhysicalProcess(Process):
     def __set_idcFactor(self, IDC):
         self.IDC_factor['IDC'][self.Number] = IDC
 
+
+    def __set_upperFlowLimitUnit(self, upperFlowLimitUnit):
+        self.upperFlowLimitUnit['upperFlowLimitUnit'][self.Number] = upperFlowLimitUnit
 
 
     def __set_capexFactors(self, CREF, MREF, F, YEAR_REF):
@@ -416,4 +423,5 @@ class PhysicalProcess(Process):
         self.ParameterList.append(self.em_fac_unit)
         self.ParameterList.append(self.K_OM)
         self.ParameterList.append(self.turn_over_acc)
+        self.ParameterList.append(self.upperFlowLimitUnit)
 

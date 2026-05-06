@@ -43,27 +43,7 @@ class Superstructure:
                  load=None, # the load in tons/y
                  loadType= None, # specify if it's Product or Substrate you're loading in
                  OptimizationMode=None,
-                 LCAimpactCategoryNames= ['terrestrial acidification potential (TAP)',
-                              'global warming potential (GWP100)',
-                              'freshwater ecotoxicity potential (FETP)',
-                              'marine ecotoxicity potential (METP)',
-                              'terrestrial ecotoxicity potential (TETP)',
-                              'fossil fuel potential (FFP)',
-                              'freshwater eutrophication potential (FEP)',
-                              'marine eutrophication potential (MEP)',
-                              'human toxicity potential (HTPc)',
-                              'human toxicity potential (HTPnc)',
-                              'ionising radiation potential (IRP)',
-                              'agricultural land occupation (LOP)',
-                              'surplus ore potential (SOP)',
-                              'ozone depletion potential (ODPinfinite)',
-                              'particulate matter formation potential (PMFP)',
-                              'photochemical oxidant formation potential: humans (HOFP)',
-                              'photochemical oxidant formation potential: ecosystems (EOFP)',
-                              'water consumption potential (WCP)',
-                              'ecosystem quality',
-                              'human health',
-                              'natural resources'],
+                 LCAimpactCategoryNames=None,
                  *args,
                  **kwargs):
 
@@ -72,6 +52,29 @@ class Superstructure:
         # Non-indexed Attribute
         # is the process product driven or not
         # self.productDriven = productDriver
+        if LCAimpactCategoryNames is None:
+            LCAimpactCategoryNames = ['terrestrial acidification potential (TAP)',
+                                      'global warming potential (GWP100)',
+                                      'freshwater ecotoxicity potential (FETP)',
+                                      'marine ecotoxicity potential (METP)',
+                                      'terrestrial ecotoxicity potential (TETP)',
+                                      'fossil fuel potential (FFP)',
+                                      'freshwater eutrophication potential (FEP)',
+                                      'marine eutrophication potential (MEP)',
+                                      'human toxicity potential (HTPc)',
+                                      'human toxicity potential (HTPnc)',
+                                      'ionising radiation potential (IRP)',
+                                      'agricultural land occupation (LOP)',
+                                      'surplus ore potential (SOP)',
+                                      'ozone depletion potential (ODPinfinite)',
+                                      'particulate matter formation potential (PMFP)',
+                                      'photochemical oxidant formation potential: humans (HOFP)',
+                                      'photochemical oxidant formation potential: ecosystems (EOFP)',
+                                      'water consumption potential (WCP)',
+                                      'ecosystem quality',
+                                      'human health',
+                                      'natural resources']
+
         if loadType != 'Product' and loadType != 'Substrate':
             print("Defaulting to load type 'None', Process not specified as 'product' or 'substrate' driven")
             self.loadType = None
@@ -933,6 +936,13 @@ class Superstructure:
             if i.Number in self.CostUnitsList['U_C']:
                 i.turn_over_acc['to_acc'][i.Number] = i.calc_turnoverACC(self.IR)
 
+    def __set_upperFlowLimitUnit(self):
+
+        for i in self.UnitsList:
+            if i.Number in self.CostUnitsList['U_C']:
+                i.upperFlowLimitUnit['upperFlowLimitUnit'][i.Number] = i.upperFlowLimitUnit['upperFlowLimitUnit']
+
+
     def __set_optionalFLH(self):
         for x in self.UnitsList:
             if x.FLH['flh'][x.Number] is None:
@@ -1149,6 +1159,7 @@ class Superstructure:
         self.I_ParameterList.append(self.ImpactInflowComponents)
         self.I_ParameterList.append(self.UtilityImpactFactors)
         self.I_ParameterList.append(self.WasteTypeU)
+        # self.I_ParameterList.append(self.CAPEX_factors['upperFlowLimitUnit'])
 
 
     # Add the Parameters from the Lists to the Model-Ready Data File
@@ -1202,7 +1213,7 @@ class Superstructure:
         to the Model-Ready DataFile
 
         """
-
+        #
         for z in self.UnitsList:
             z.fill_parameterList()
             x = z.ParameterList

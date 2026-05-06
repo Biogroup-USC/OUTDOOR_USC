@@ -205,6 +205,7 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
             self.centralDataManager.sensitivityData = []
 
         for unitDTO in self.centralDataManager.unitProcessData.values():
+
             if unitDTO.type in [ProcessType.BOOLDISTRIBUTOR, ProcessType.DISTRIBUTOR]:
                 if not hasattr(unitDTO, 'curvatureLinesDistributor'):
                     unitDTO.curvatureLinesDistributor = {}
@@ -216,6 +217,13 @@ class MainWindow(QMainWindow):  # Inherit from QMainWindow
                     unitDTO.curvatureLinesInput = {}
                 if not hasattr(unitDTO, 'inputLineUnitMap'):
                     unitDTO.inputLineUnitMap = {}
+
+            #elif unitDTO.type not in [ProcessType.INPUT, ProcessType.OUTPUT, ProcessType.BOOLDISTRIBUTOR, ProcessType.DISTRIBUTOR]:
+            #   dialogData = unitDTO.dialogData
+                #if not hasattr(dialogData, 'Flow Limit Unit'):
+                #    dialogData['Flow Limit Unit'] = 11111111
+                    #unitDTO.dialogData = dialogData
+
 
         if not hasattr(self.centralDataManager, 'uncertaintyData'):
             self.centralDataManager.uncertaintyData = []

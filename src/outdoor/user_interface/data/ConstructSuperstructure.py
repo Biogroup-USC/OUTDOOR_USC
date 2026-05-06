@@ -51,7 +51,7 @@ class ConstructSuperstructure:
                                      "Electricity production (generators)": 'PEL_PROD',
                                      "Heat production (generators)": 'PHEAT', }
 
-        # get the list of LCA methodes
+        # get the list of LCA methods
         self.LCAimpactCatagoryNames = LCACalculationMachine(self.centralDataManager).getImpactCatNames()
 
         # fist check if there are no incomplete units, if so, raise an error
@@ -696,6 +696,13 @@ class ConstructSuperstructure:
         ReferenceFlow = dto.dialogData["Reference Flow Equipment Cost"]
         CostExponent = dto.dialogData["Exponent"]
         ReferenceYear = dto.dialogData["Reference Year"]
+        if  "Flow Limit Unit" in dict(dto.dialogData).keys():
+            upperFlowLimitUnit = dto.dialogData["Flow Limit Unit"]
+        else:
+            #self.logger.info("No upper flow limit unit given for unit '{}', "
+             #                "setting upper flow limit to default value".format(dto.name))
+            upperFlowLimitUnit = 0.999e9 # set to a very high value if not provided
+
         maxCECPI = max(self.superstructureObject.CECPI_SET.keys())
         minCECPI = min(self.superstructureObject.CECPI_SET.keys())
 
@@ -728,7 +735,8 @@ class ConstructSuperstructure:
                              CostExponent,
                              ReferenceYear,
                              ReferenceFlowType,
-                             ReferenceFlowComponentList
+                             ReferenceFlowComponentList,
+                             upperFlowLimitUnit
                              )
 
     def _additivesUnitData(self, dto, processObject):

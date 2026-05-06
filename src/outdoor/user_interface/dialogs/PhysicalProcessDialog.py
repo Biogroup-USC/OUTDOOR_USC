@@ -309,7 +309,7 @@ class PhysicalProcessesDialog(QDialog):
         widget = QWidget()
         layout = QFormLayout()
 
-        self._createSectionTitle(text="Parameters for economy of scale", layout=layout)
+        self._createSectionTitle(text="Parameters for equipment costs with economy of scale", layout=layout)
 
         # Reference Flow type
         self.referenceFlowType = QComboBox(self)
@@ -334,6 +334,7 @@ class PhysicalProcessesDialog(QDialog):
         self.referenceFlowInput.setValidator(QDoubleValidator(0.00, 999999.99, 6))
         # set object name
         self.referenceFlowInput.setObjectName("referenceFlowInput")
+        # set the reference flow unit label next to the input
         self.referenceFlowUnit = QLabel(self)
         self.referenceFlowUnit.setText("t/h")  # Replace "Your Start Value" with the value you want to set
         self.referenceFlowUnit.setFixedWidth(50)  # make the lable bigger in width
@@ -345,6 +346,24 @@ class PhysicalProcessesDialog(QDialog):
 
         tooltipText = """The reference flow is the amount of material that is used to produce the product."""
         self._addRowWithTooltip(layout, labelText="Reference Flow:", widget=hlayout, tooltipText=tooltipText)
+
+        # limit flow through unit process for cost calculation
+        self.limitFlowCostCalculation = QLineEdit(self)
+        self.limitFlowCostCalculation.setText("100000")  # Replace "Your Start Value" with the value you want to set
+        self.limitFlowCostCalculation.setObjectName("limitFlowCostCalculation")  # set object name
+        tooltipText = "The maximum flow permitted through one unit process, if over the limit outdoor will buy parallel units of the same process to cover the flow."
+        # set the reference flow unit label next to the input
+        self.flowLimitUnit = QLabel(self)
+        self.flowLimitUnit.setText("t/h")  # Replace "Your Start Value" with the value you want to set
+        self.flowLimitUnit.setFixedWidth(50)  # make the lable bigger in width
+        self.flowLimitUnit.setFont(self.subtitleFont)  # make it bold
+
+        hlayoutFlowLimit = QHBoxLayout()
+        hlayoutFlowLimit.addWidget(self.limitFlowCostCalculation)
+        hlayoutFlowLimit.addWidget(self.flowLimitUnit)
+
+        self._addRowWithTooltip(layout, labelText="Flow Limit:", widget=hlayoutFlowLimit,
+                                tooltipText=tooltipText)
 
         #Components table
         #layout.addWidget(QLabel("Components:"))
@@ -1467,6 +1486,7 @@ class PhysicalProcessesDialog(QDialog):
             if self.referenceFlowType.currentText() == "Exiting Mass Flow" or self.referenceFlowType.currentText() == "Entering Mass Flow":
                 # If a mass flow is selected, make the button to add components clickable
                 self.referenceFlowUnit.setText("t/h")
+                self.flowLimitUnit.setText("t/h")
                 self.componentsTable.setDisabled(False)
                 self.addRowButton.setDisabled(False)
                 self.addRowButton.setStyleSheet("""
@@ -1506,6 +1526,7 @@ class PhysicalProcessesDialog(QDialog):
                 """)
 
                 self.referenceFlowUnit.setText("MWh")
+                self.flowLimitUnit.setText("MWh")
 
         elif type == "Electricity":
             if self.referenceFlowTypeEnergy.currentText() == 'Entering Mass Flow' or self.referenceFlowTypeEnergy.currentText() == 'Exiting Mass Flow':
@@ -1514,6 +1535,7 @@ class PhysicalProcessesDialog(QDialog):
                 self.referenceFlowUnitEnergy.setText("MWh/Mmol")
             else:
                 self.referenceFlowUnitEnergy.setText("ΔT")
+
 
         elif type == "Heat1":
             if self.referenceFlowTypeHeat1.currentText() == 'Entering Mass Flow' or self.referenceFlowTypeHeat1.currentText() == 'Exiting Mass Flow':
@@ -1580,6 +1602,7 @@ class PhysicalProcessesDialog(QDialog):
             # Cost data
             'Reference Flow Type':              self._getWidgetData(self.referenceFlowType, "str"),
             'Reference Flow Equipment Cost':    self._getWidgetData(self.referenceFlowInput, "float"),
+            'Flow Limit Unit':                  self._getWidgetData(self.limitFlowCostCalculation, "float"),
             'Exponent':                         self._getWidgetData(self.exponentInput, "float"),
             'Components Equipment Costs':       self._collectTableData(self.componentsTable),
             'Reference Cost Unit':              self._getWidgetData(self.referenceCost, "float"),
@@ -1694,6 +1717,8 @@ class PhysicalProcessesDialog(QDialog):
                 self.referenceFlowType.setCurrentIndex(index)
         if 'Reference Flow Equipment Cost' in dialogData:
             self.referenceFlowInput.setText(str(dialogData['Reference Flow Equipment Cost']))
+        if 'Flow Limit Unit' in dialogData:
+            self.limitFlowCostCalculation.setText(str(dialogData['Flow Limit Unit']))
         if 'Exponent' in dialogData:
             self.exponentInput.setText(str(dialogData['Exponent']))
         if 'Reference Cost Unit' in dialogData:

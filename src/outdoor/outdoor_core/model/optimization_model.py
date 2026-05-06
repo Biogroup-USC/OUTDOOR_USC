@@ -1040,15 +1040,37 @@ class SuperstructureModel(AbstractModel):
         self.HENCOST = Var(self.HI, within=NonNegativeReals)
         self.UtCosts = Var()
 
-        # Piece-Wise Linear CAPEX
-        self.lin_CAPEX_s = Var(self.U_C, self.JI, bounds=(0, 1))
-        self.lin_CAPEX_z = Var(self.U_C, self.JI, within=Binary)
-        self.lin_CAPEX_lambda = Var(self.U_C, self.J, bounds=(0, 1))
+        ##      Piece-Wise Linear CAPEX
+        # Total reference flow used for CAPEX sizing
         self.REF_FLOW_CAPEX = Var(self.U_C, within=NonNegativeReals)
 
-        # CAPEX (Units, Returning costs, Heat Pump, Total)
+        # Maximum reference flow allowed per physical parallel unit
+        self.upperFlowLimitUnit = Param(self.U_C, initialize=1e12, mutable=True)
+
+        # Maximum number of parallel units allowed
+        self.N_CAPEX = RangeSet(1, 5)
+
+        # Binary: whether parallel unit n of technology u exists
+        self.Y_PARALLEL_UNIT = Var(self.U_C, self.N_CAPEX, within=Binary)
+
+        # Reference flow assigned to each parallel unit
+        self.REF_FLOW_CAPEX_UNIT = Var(self.U_C, self.N_CAPEX,within=NonNegativeReals)
+
+        # Equipment cost of each parallel unit
+        self.EC_UNIT = Var(self.U_C,self.N_CAPEX,within=NonNegativeReals)
+
+        # Total equipment cost over all parallel units
         self.EC = Var(self.U_C, within=NonNegativeReals)
+
+        # Fixed capital investment
         self.FCI = Var(self.U_C, within=NonNegativeReals)
+
+        # Piecewise CAPEX variables per parallel unit
+        self.lin_CAPEX_s = Var(self.U_C, self.N_CAPEX, self.JI, bounds=(0, 1))
+        self.lin_CAPEX_z = Var(self.U_C, self.N_CAPEX, self.JI, within=Binary)
+        self.lin_CAPEX_lambda = Var(self.U_C, self.N_CAPEX, self.J, bounds=(0, 1))
+
+
         self.ACC = Var(self.U_C, within=NonNegativeReals)
         self.to_acc = Param(self.U_C, initialize=0, mutable=True)
         self.TO_CAPEX = Var(self.U_C, within=NonNegativeReals)
@@ -1094,40 +1116,88 @@ class SuperstructureModel(AbstractModel):
             else:
                 return self.REF_FLOW_CAPEX[u] == 0
 
-        def CapexEquation_2_rule(self, u):
+        # total flow = flow through unit 1 + flow through unit 2 + ...
+        def CapexParallel_1_rule(self, u):
+            return self.REF_FLOW_CAPEX[u] == sum(
+                self.REF_FLOW_CAPEX_UNIT[u, n]
+                for n in self.N_CAPEX
+            )
+
+        # flow through that parallel unit <= upperFlowLimitUnit
+        def CapexParallel_2_rule(self, u, n):
+            return (
+                self.REF_FLOW_CAPEX_UNIT[u, n]
+                <= self.upperFlowLimitUnit[u] * self.Y_PARALLEL_UNIT[u, n]
+            )
+
+        # a minimum loading / ordering constraint so that earlier units are filled before later units.
+        def CapexParallel_FillOrder_rule(self, u, n):
+            if n == max(self.N_CAPEX):
+                return Constraint.Skip
+
+            return (
+                self.REF_FLOW_CAPEX_UNIT[u, n]
+                >= self.upperFlowLimitUnit[u] * self.Y_PARALLEL_UNIT[u, n + 1]
+            )
+
+        # This avoids strange solutions where unit 3 is active but unit 1 is inactive.
+        def CapexParallel_3_rule(self, u, n):
+            if n == max(self.N_CAPEX):
+                return Constraint.Skip
+
+            return self.Y_PARALLEL_UNIT[u, n] >= self.Y_PARALLEL_UNIT[u, n + 1]
+
+        def CapexEquation_2_rule(self, u, n):
             return (
                 sum(
-                    self.lin_CAPEX_x[u, j] * self.lin_CAPEX_lambda[u, j] for j in self.J
+                    self.lin_CAPEX_x[u, j] * self.lin_CAPEX_lambda[u, n, j]
+                    for j in self.J
                 )
-                == self.REF_FLOW_CAPEX[u]
+                == self.REF_FLOW_CAPEX_UNIT[u, n]
             )
 
-        def CapexEquation_3_rule(self, u):
-            return self.EC[u] == sum(
-                self.lin_CAPEX_y[u, j] * self.lin_CAPEX_lambda[u, j] for j in self.J
+        def CapexEquation_3_rule(self, u, n):
+            return self.EC_UNIT[u, n] == sum(
+                self.lin_CAPEX_y[u, j] * self.lin_CAPEX_lambda[u, n, j]
+                for j in self.J
             )
 
-        def CapexEquation_4_rule(self, u):
-            return sum(self.lin_CAPEX_z[u, j] for j in self.JI) == 1
+        def CapexEquation_4_rule(self, u, n):
+            return sum(
+                self.lin_CAPEX_z[u, n, j]
+                for j in self.JI
+            ) == self.Y_PARALLEL_UNIT[u, n]
 
-        def CapexEquation_5_rule(self, u, j):
-            return self.lin_CAPEX_s[u, j] <= self.lin_CAPEX_z[u, j]
+        def CapexEquation_5_rule(self, u, n, j):
+            return self.lin_CAPEX_s[u, n, j] <= self.lin_CAPEX_z[u, n, j]
 
-        def CapexEquation_6_rule(self, u, j):
+        def CapexEquation_6_rule(self, u, n, j):
             if j == 1:
                 return (
-                    self.lin_CAPEX_lambda[u, j]
-                    == self.lin_CAPEX_z[u, j] - self.lin_CAPEX_s[u, j]
+                    self.lin_CAPEX_lambda[u, n, j]
+                    == self.lin_CAPEX_z[u, n, j] - self.lin_CAPEX_s[u, n, j]
                 )
+
             elif j == len(self.J):
-                return self.lin_CAPEX_lambda[u, j] == self.lin_CAPEX_s[u, j - 1]
+                return (
+                    self.lin_CAPEX_lambda[u, n, j]
+                    == self.lin_CAPEX_s[u, n, j - 1]
+                )
+
             else:
                 return (
-                    self.lin_CAPEX_lambda[u, j]
-                    == self.lin_CAPEX_z[u, j]
-                    - self.lin_CAPEX_s[u, j]
-                    + self.lin_CAPEX_s[u, j - 1]
+                    self.lin_CAPEX_lambda[u, n, j]
+                    == self.lin_CAPEX_z[u, n, j]
+                    - self.lin_CAPEX_s[u, n, j]
+                    + self.lin_CAPEX_s[u, n, j - 1]
                 )
+
+        # sum over all the parallel units, to get the total equipment cost for that technology
+        def CapexEquation_EC_Total_rule(self, u):
+            return self.EC[u] == sum(
+                self.EC_UNIT[u, n]
+                for n in self.N_CAPEX
+            )
 
         # Fixed Capital investment, Annual capital costs, Heat Pump, Returning costs, Total
         def CapexEquation_7_rule(self, u):
@@ -1182,13 +1252,38 @@ class SuperstructureModel(AbstractModel):
                 + sum(self.HENCOST[hi] for hi in self.HI)/1000  # HEN capital costs
             )
 
-        self.CapexEquation_1 = Constraint(self.U_C, rule=CapexEquation_1_rule)
-        self.CapexEquation_2 = Constraint(self.U_C, rule=CapexEquation_2_rule)
-        self.CapexEquation_3 = Constraint(self.U_C, rule=CapexEquation_3_rule)
-        self.CapexEquation_4 = Constraint(self.U_C, rule=CapexEquation_4_rule)
-        self.CapexEquation_5 = Constraint(self.U_C, self.JI, rule=CapexEquation_5_rule)
-        self.CapexEquation_6 = Constraint(self.U_C, self.J, rule=CapexEquation_6_rule)
+        self.CapexEquation_1 = Constraint(
+            self.U_C,
+            rule=CapexEquation_1_rule
+        )
+
+        self.CapexParallel_1 = Constraint(
+            self.U_C,
+            rule=CapexParallel_1_rule
+        )
+
+        self.CapexParallel_2 = Constraint(
+            self.U_C,
+            self.N_CAPEX,
+            rule=CapexParallel_2_rule
+        )
+
+        self.CapexParallel_3 = Constraint(
+            self.U_C,
+            self.N_CAPEX,
+            rule=CapexParallel_3_rule
+        )
+
+        self.CapexEquation_2 = Constraint(self.U_C, self.N_CAPEX, rule=CapexEquation_2_rule)
+        self.CapexEquation_filling = Constraint(self.U_C, self.N_CAPEX, rule= CapexParallel_FillOrder_rule)
+        self.CapexEquation_3 = Constraint(self.U_C, self.N_CAPEX,rule=CapexEquation_3_rule)
+        self.CapexEquation_4 = Constraint(self.U_C, self.N_CAPEX, rule=CapexEquation_4_rule)
+        self.CapexEquation_5 = Constraint( self.U_C, self.N_CAPEX, self.JI, rule=CapexEquation_5_rule)
+        self.CapexEquation_6 = Constraint(self.U_C,self.N_CAPEX, self.J, rule=CapexEquation_6_rule)
+        self.CapexEquation_EC_Total = Constraint( self.U_C, rule=CapexEquation_EC_Total_rule)
         self.CapexEquation_7 = Constraint(self.U_C, rule=CapexEquation_7_rule)
+
+
         self.CapexEquation_8 = Constraint(self.U_C, rule=CapexEquation_8_rule)
         self.CapexEquation_9 = Constraint(rule=CapexEquation_9_rule)
 
@@ -1537,6 +1632,7 @@ class SuperstructureModel(AbstractModel):
 
         # total impact per category: the sum of all impacts, inflow, utilities and waste
         self.IMPACT_TOT = Var(self.IMPACT_CATEGORIES)
+
         def LCA_Total_Impact_rule(self, impCat):
             return self.IMPACT_TOT[impCat] == (self.IMPACT_INPUTS_PER_CAT[impCat] + self.IMPACT_UTILITIES_PER_CAT[impCat]
                                                + self.IMPACT_WASTE_PER_CAT[impCat])
