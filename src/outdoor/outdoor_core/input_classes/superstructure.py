@@ -658,9 +658,6 @@ class Superstructure:
         for i in em_fac_ut_dic:
             self.em_fac_ut['em_fac_ut'][i] = em_fac_ut_dic[i]
 
-    def set_utilityFreshWaterFator(self, fw_fac_ut_dic):
-        for i in fw_fac_ut_dic:
-            self.fw_fac_ut['fw_fac_ut'][i] = fw_fac_ut_dic[i]
 
     def set_componentEmissionsFactor(self, em_fac_comp_dic):
         for i in em_fac_comp_dic:

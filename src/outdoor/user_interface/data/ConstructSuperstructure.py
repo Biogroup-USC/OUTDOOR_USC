@@ -223,12 +223,6 @@ class ConstructSuperstructure:
             if dto.name in ["Electricity", "Chilling"]:
                 utilityPrices[dto.name] = dto.cost
 
-        obj.set_utilityEmissionsFactor(emissionsUtilityDict)
-        obj.set_utilityFreshWaterFator(emissionsWaterUtilityDict)
-
-        # replaced by the lca data not important any more, just make a list of zeros to not break the code
-        co2ComponentList = {dto.name: 0 for dto in self.centralDataManager.componentData}
-        obj.set_componentEmissionsFactor(co2ComponentList)
         # TODO Condense these into a single list when you have time.
         setterList = {}
         for dto in self.centralDataManager.temperatureData:
@@ -264,17 +258,6 @@ class ConstructSuperstructure:
                                                impactCategories=self.LCAimpactCatagoryNames)
         obj._set_impact_factors_superstructure(impactType="util_impact_factors", DTOlist=self.centralDataManager.utilityData,
                                                impactCategories=self.LCAimpactCatagoryNames)
-
-        #obj._set_waste_management_impact_factors(self.centralDataManager.wasteData)
-        # set the impact inflow components
-        #obj._set_component_impact_factors(self.centralDataManager.componentData)
-
-        # for debugging purposes
-        # a = obj.ImpactInflowComponents['impact_inFlow_components']
-        # print(a)
-
-        # set the impact of utility factors
-        #obj._set_utility_impact_factors(self.centralDataManager.utilityData)
 
         return obj, errorFlag
 

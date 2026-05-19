@@ -21,25 +21,11 @@ Impact_UT = consumption (MW) * Impact_factor (kg_co2/kWh) * 1000 (to get MW) * 8
 
 # test multiple outputs can only one be selected to go to one unit. Check if model breaks yes or no!
 
-# I need to make sure that temperatures are always filled in!! otherwise you'll get anying errors!!
-
-# when deleting a chemical component it needs to be deleted throughout ALL units!
-
 # set guard rails in the makeSuperstructure file if you see fishy data!!
 
 
-# 1
-Test if the newly added equations in OUTDOOR work correctly
-
-# 2
-the curves don't save well, fix this
-
 # 3
 Making a warning when you have not filled in upper and lower bounds for the input dialogs
-
-# 4
-Make a warning NOT AN ERROR when mass balances are over 1! they don't have to be 1
-(think of COD balances, CO2 or water don't really get considered in these bichemical reactions)
 
 # 5
 In the readME add that the units for WWTP is in m3 and that in reality the better metric to evaluate

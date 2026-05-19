@@ -119,8 +119,6 @@ class SuperstructureModel(AbstractModel):
         self.create_EnergyBalances()
         self.create_WasteCosts()
         self.create_EconomicEvaluation()
-        self.create_EnvironmentalEvaluation()
-        self.create_FreshwaterEvaluation()
         self.create_LCAEquations()
         self.create_DecisionMaking()
         self.create_ObjectiveFunction()
@@ -1394,166 +1392,6 @@ class SuperstructureModel(AbstractModel):
 
         self.TAC_Equation = Constraint(rule=TAC_1_rule)
 
-    # **** ENVIRONMENTAL BALANCES *****
-    # -------------------------
-
-    def create_EnvironmentalEvaluation(self):
-        """
-        Description
-        -------
-        This method creates the PYOMO parameters and variables
-        that are necessary for the general CO2 Emissions (eg. emission factors etc.).
-        Afterwards Emission equations are written as PYOMO Constraints.
-
-        """
-
-        # Parameter
-        # --------
-
-        # Emission factors (Utilities, Components, Products, Building of units)
-        self.em_fac_ut = Param(self.UT, initialize=0, mutable=True)
-        self.em_fac_comp = Param(self.I, initialize=0, mutable=True)
-        self.em_fac_prod = Param(self.U_PP, initialize=0, mutable=True)
-        self.em_fac_unit = Param(self.U_C, initialize=0, mutable=True)
-        self.em_fac_source = Param(self.U_S, initialize=0, mutable=True)
-
-        # Lifetime of Units
-        self.LT = Param(self.U, initialize=1, mutable=True)
-
-        # Variables
-        # ---------
-
-        self.GWP_UNITS = Var(self.U_C)
-        self.GWP_CREDITS = Var(self.U_PP)
-        self.GWP_CAPTURE = Var()
-        self.GWP_U = Var(self.U, initialize=0)
-        self.GWP_UT = Var(self.UT)
-        self.GWP_TOT = Var()
-
-        # Constraints
-        # -----------
-
-        def GWP_1_rule(self, u):
-            return self.GWP_U[u] == self.flh[u] * sum(
-                self.FLOW_WASTE[u, i] * self.em_fac_comp[i] for i in self.I
-            )
-
-        def GWP_2_rule(self, ut):
-            if ut == "Electricity":
-                return (
-                    self.GWP_UT[ut]
-                    == (self.ENERGY_DEMAND_TOT[ut] + self.ENERGY_DEMAND_HP_EL * self.H)
-                    * self.em_fac_ut[ut]
-                )
-            else:
-                return (
-                    self.GWP_UT[ut] == self.ENERGY_DEMAND_TOT[ut] * self.em_fac_ut[ut]
-                )
-
-        def GWP_3_rule(self):
-            return self.GWP_UT["Heat"] == self.em_fac_ut["Heat"] * self.H * (
-                sum(self.ENERGY_DEMAND_HEAT_DEFI[hi] for hi in self.HI)
-                - self.ENERGY_DEMAND_HEAT_PROD_SELL * 0.7
-            )
-
-        def GWP_5_rule(self):
-            return self.GWP_UT["Heat2"] == 0
-
-        def GWP_6_rule(self, u):
-            return self.GWP_UNITS[u] == self.em_fac_unit[u] / self.LT[u] * self.Y[u]
-
-        def GWP_7_rule(self, u):
-            return (
-                self.GWP_CREDITS[u]
-                == self.em_fac_prod[u]
-                * sum(self.FLOW_IN[u, i] for i in self.I)
-                * self.flh[u]
-            )
-
-        def GWP_8_rule(self):
-            return self.GWP_CAPTURE == sum(
-                self.FLOW_SOURCE[u_s] * self.flh[u_s] * self.em_fac_source[u_s]
-                for u_s in self.U_S
-            )
-
-        def GWP_4_rule(self):
-            return self.GWP_TOT == sum(self.GWP_U[u] for u in self.U_C) + sum(
-                self.GWP_UT[ut] for ut in self.UT
-            ) - self.GWP_CAPTURE - sum(self.GWP_CREDITS[u] for u in self.U_PP) + sum(
-                self.GWP_UNITS[u] for u in self.U_C
-            )
-
-        self.EnvironmentalEquation1 = Constraint(self.U_C, rule=GWP_1_rule)
-        self.EnvironmentalEquation2 = Constraint(self.U_UT, rule=GWP_2_rule)
-        self.EnvironmentalEquation3 = Constraint(rule=GWP_3_rule)
-        self.EnvironmentalEquation4 = Constraint(rule=GWP_4_rule)
-        self.EnvironmentalEquation5 = Constraint(rule=GWP_5_rule)
-        self.EnvironmentalEquation6 = Constraint(self.U_C, rule=GWP_6_rule)
-        self.EnvironmentalEquation7 = Constraint(self.U_PP, rule=GWP_7_rule)
-        self.EnvironmentalEquation8 = Constraint(rule=GWP_8_rule)
-
-    # **** FRESH WATER DEMAND EQUATIONS
-    # --------------------------------------
-
-    def create_FreshwaterEvaluation(self):
-        """
-
-        Description
-        -------
-        This method creates the PYOMO parameters and variables
-        that are necessary for the general Fresh water demand (eg. demand factors etc.).
-        Afterwards FWD equations are written as PYOMO Constraints.
-
-        """
-
-        self.FWD_UT1 = Var()
-        self.FWD_UT2 = Var()
-        self.FWD_S = Var()
-        self.FWD_C = Var()
-        self.FWD_TOT = Var()
-
-        self.fw_fac_source = Param(self.U_S, initialize=0, mutable=True)
-        self.fw_fac_ut = Param(self.UT, initialize=0, mutable=True)
-        self.fw_fac_prod = Param(self.U_PP, initialize=0, mutable=True)
-
-        def FWD_1_rule(self):
-            return self.FWD_S == sum(
-                self.FLOW_SOURCE[u_s] * self.fw_fac_source[u_s] * self.flh[u_s]
-                for u_s in self.U_S
-            )
-
-        def FWD_2_rule(self):
-            return self.FWD_C == sum(
-                sum(self.FLOW_IN[u_p, i] for i in self.I)
-                * self.flh[u_p]
-                * self.fw_fac_prod[u_p]
-                for u_p in self.U_PP
-            )
-
-        def FWD_3_rule(self):
-            return self.FWD_UT1 == sum(
-                self.ENERGY_DEMAND_TOT[ut] * self.fw_fac_ut[ut] for ut in self.U_UT
-            )
-
-        def FWD_4_rule(self):
-            return (
-                self.FWD_UT2
-                == (
-                    sum(self.ENERGY_DEMAND_HEAT_DEFI[hi] for hi in self.HI)
-                    - self.ENERGY_DEMAND_HEAT_PROD_SELL * 0.7
-                )
-                * self.H
-                * self.fw_fac_ut["Heat"]
-            )
-
-        def FWD_5_rule(self):
-            return self.FWD_TOT == self.FWD_UT2 + self.FWD_UT1 - self.FWD_S - self.FWD_C
-
-        self.FreshWaterEquation1 = Constraint(rule=FWD_1_rule)
-        self.FreshWaterEquation2 = Constraint(rule=FWD_2_rule)
-        self.FreshWaterEquation3 = Constraint(rule=FWD_3_rule)
-        self.FreshWaterEquation4 = Constraint(rule=FWD_4_rule)
-        self.FreshWaterEquation5 = Constraint(rule=FWD_5_rule)
 
     # *** LCA EQUATIONS ***
     # ------------------------
@@ -1775,14 +1613,6 @@ class SuperstructureModel(AbstractModel):
             return self.NPC == (self.TAC * 1000)/self.sourceOrProductLoad # in € per tonne of product per year (so your target production)
 
 
-        def Specific_GWP_rule(self):
-            return self.NPE == self.GWP_TOT / self.sourceOrProductLoad
-            #return self.NPE == self.GWP_TOT
-
-        def Specific_FWD_rule(self):
-            return self.NPFWD == self.FWD_TOT / self.sourceOrProductLoad
-            #return self.NPFWD == self.FWD_TOT
-
         def Specific_EBIT_rule(self):
             if self.loadType:  # in €/ton
                 return self.EBIT == (-self.TAC * 1000) / self.sourceOrProductLoad # in M€ (million euro)
@@ -1790,8 +1620,6 @@ class SuperstructureModel(AbstractModel):
                 return self.EBIT == (self.PROFITS_TOT - self.CAPEX - self.OPEX)
 
         self.Specific_NPC_rule = Constraint(rule=Specific_NPC_rule)
-        self.Specific_GWP_rule = Constraint(rule=Specific_GWP_rule)
-        self.Specific_FWD_rule = Constraint(rule=Specific_FWD_rule)
         self.Specific_EBIT_rule = Constraint(rule=Specific_EBIT_rule)
 
         # Definition of the used Objective Function
@@ -1799,15 +1627,6 @@ class SuperstructureModel(AbstractModel):
         if self.objective_name == "NPC":
             def Objective_rule(self):
                 return self.NPC
-
-        elif self.objective_name == "NPE":
-            def Objective_rule(self):
-                return self.NPE
-
-        elif self.objective_name == "FWD":
-
-            def Objective_rule(self):
-                return self.NPFWD
 
         elif self.objective_name == "EBIT":
                 def Objective_rule(self):

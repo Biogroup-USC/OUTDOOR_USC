@@ -289,16 +289,6 @@ class ModelOutput:
         else:
             basic_results["Basic results"]["Net production costs"] = "{} euro/ton".format(round(self._data["NPC"]/ self._data['SumOfProductFlows'], 2))
 
-        if self._data['sourceOrProductLoad'] >= 1:
-            basic_results["Basic results"]["Net production GHG emissions"] = "{} CO2-eq/ton".format(round(self._data["NPE"], 2))
-        else:
-            basic_results["Basic results"]["Net production GHG emissions"] = "{} CO2-eq/ton".format(round(self._data["NPE"] / self._data['SumOfProductFlows'], 2))
-
-        if self._data['sourceOrProductLoad'] >= 1:
-            basic_results["Basic results"]["Net present FWD"] = "{} H2O-eq/ton".format(round(self._data["NPFWD"], 2))
-        else:
-            basic_results["Basic results"]["Net production FWD"] = "{} H2O-eq/ton".format(round(self._data["NPFWD"]/ self._data['SumOfProductFlows'], 2))
-
         # electricity demand and production
         basic_results["Basic results"]["-------"] = ""
         basic_results["Basic results"]["Electricity Demand"] = "{} MW".format(round(self._data["TOTAL_ELECTRICITY_DEMAND"], 2))
@@ -1554,8 +1544,6 @@ class ModelOutput:
         self.results.update(self.collect_capital_cost_shares())
         self.results.update(self._collect_electricity_shares())
         self.results.update(self._collect_heatintegration_results())
-        # self.results.update(self._collect_GHG_results())
-        # self.results.update(self._collect_FWD_results())
         self.results.update(self._collect_energy_data())
         self.results.update(self._collect_mass_flows())
         self.results.update(self._collect_LCA_results())
