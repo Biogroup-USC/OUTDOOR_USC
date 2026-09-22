@@ -207,7 +207,7 @@ class ComponentsTab(QWidget):
             self.collectData()
             # Save the data to the central data manager
             self.centralDataManager.addData("chemicalComponentsData", self.componentList)
-            self.centralDataManager.addData(("componentEmissionData", self.componentEmissionData))
+            self.centralDataManager.addData("componentEmissionData", self.componentEmissionData)
             self.logger.debug("Data saved components tab to central data manager")
 
     def updateData(self, oldChemicalName, newChemicalName):
